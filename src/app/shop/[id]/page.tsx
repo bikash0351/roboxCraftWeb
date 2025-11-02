@@ -21,6 +21,8 @@ import { AddToCartButton } from "./add-to-cart-button";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 function ShareButtons() {
     const [pageUrl, setPageUrl] = useState('');
@@ -53,7 +55,7 @@ function ShareButtons() {
 }
 
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage({ params: { id } }: { params: { id: string } }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +63,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!params.id) return;
+      if (!id) return;
       setLoading(true);
       try {
-        const productQuery = query(collection(db, "products"), where("id", "==", params.id), limit(1));
+        const productQuery = query(collection(db, "products"), where("id", "==", id), limit(1));
         const productSnapshots = await getDocs(productQuery);
         
         if (!productSnapshots.empty) {
@@ -94,7 +96,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       }
     };
     fetchProduct();
-  }, [params.id]);
+  }, [id]);
 
 
   if (loading) {
@@ -303,6 +305,5 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       )}
     </div>
   );
-}
 
     
