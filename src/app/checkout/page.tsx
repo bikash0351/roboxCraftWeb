@@ -79,6 +79,7 @@ function CheckoutForm() {
 
 
     useEffect(() => {
+        // Only redirect if cart is empty AND we weren't just sent here from login
         if (!cartLoading && items.length === 0 && !redirect) {
             router.replace("/shop");
         }
@@ -335,5 +336,3 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
-
-    
