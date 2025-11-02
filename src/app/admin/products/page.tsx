@@ -5,7 +5,7 @@
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,8 @@ const productSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters long"),
   category: z.enum(["Kits", "Components"]),
   price: z.coerce.number().positive("Price must be a positive number"),
-  originalPrice: z.coerce.number().optional(),
+  costPrice: z.coerce.number().optional(),
+  discountPercentage: z.coerce.number().min(0).max(100).optional(),
   stock: z.coerce.number().min(0, "Stock can't be negative"),
   imageUrl: z.string().optional(),
   shortDescription: z.string().optional(),
@@ -42,6 +43,179 @@ const productSchema = z.object({
 });
 
 type ProductWithId = Product & { firestoreId: string };
+
+function ProductFormFields() {
+    const { control, setValue, watch } = useFormContext<z.infer<typeof productSchema>>();
+    const costPrice = watch('costPrice');
+    const price = watch('price');
+    const discountPercentage = watch('discountPercentage');
+
+    useEffect(() => {
+        const cost = Number(costPrice) || 0;
+        const currentPrice = Number(price) || 0;
+        const discount = Number(discountPercentage) || 0;
+
+        const priceChanged = currentPrice !== price;
+        const costPriceChanged = cost !== costPrice;
+        const discountChanged = discount !== discountPercentage;
+
+        if (cost > 0) {
+            // If discount is changed, calculate price
+            if (discountChanged) {
+                 const newPrice = cost * (1 - discount / 100);
+                 if (Math.abs(newPrice - currentPrice) > 0.01) {
+                    setValue('price', Number(newPrice.toFixed(2)));
+                 }
+            } 
+            // If price is changed, calculate discount
+            else if (priceChanged) {
+                if (currentPrice < cost) {
+                    const newDiscount = ((cost - currentPrice) / cost) * 100;
+                    if (Math.abs(newDiscount - discount) > 0.01) {
+                        setValue('discountPercentage', Number(newDiscount.toFixed(2)));
+                    }
+                } else {
+                     setValue('discountPercentage', 0);
+                }
+            }
+        }
+    }, [price, costPrice, discountPercentage, setValue]);
+
+    return (
+        <>
+            <FormField
+                control={control}
+                name="name"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Product Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., Arduino Uno R3" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name="shortDescription"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Short Description</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="A brief summary for the product page." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name="description"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Full Description</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="The complete product description for the details tab." {...field} rows={6}/>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name="category"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="Kits">Kits</SelectItem>
+                        <SelectItem value="Components">Components</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                    control={control}
+                    name="costPrice"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Cost Price (₹)</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" placeholder="e.g., 59.99" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={control}
+                    name="discountPercentage"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Discount (%)</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" placeholder="e.g., 10" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={control}
+                    name="price"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Selling Price (₹)</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" placeholder="e.g., 39.99" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <FormField
+                control={control}
+                name="stock"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Stock Quantity</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 100" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name="tags"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Tags</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., arduino, beginner, robotics" {...field} />
+                        </FormControl>
+                            <FormDescription>
+                            Comma-separated tags for product discovery.
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </>
+    )
+}
 
 export default function AdminProductsPage() {
     const { admin, loading: adminLoading } = useAdminAuth();
@@ -61,7 +235,8 @@ export default function AdminProductsPage() {
             name: "",
             category: "Kits",
             price: 0,
-            originalPrice: undefined,
+            costPrice: undefined,
+            discountPercentage: undefined,
             stock: 0,
             imageUrl: "",
             shortDescription: "",
@@ -102,7 +277,7 @@ export default function AdminProductsPage() {
         if (product) {
             form.reset({
                 ...product,
-                originalPrice: product.originalPrice || undefined,
+                costPrice: product.costPrice || undefined,
                 tags: product.tags?.join(', ') || '',
             });
         } else {
@@ -110,7 +285,8 @@ export default function AdminProductsPage() {
                 name: "",
                 category: "Kits",
                 price: 0,
-                originalPrice: undefined,
+                costPrice: undefined,
+                discountPercentage: undefined,
                 stock: 0,
                 imageUrl: "",
                 shortDescription: "",
@@ -138,8 +314,12 @@ export default function AdminProductsPage() {
             }
 
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+            
+            // Exclude discountPercentage from the data saved to Firestore
+            const { discountPercentage, ...productDataToSave } = values;
+            
             const productData = { 
-                ...values, 
+                ...productDataToSave, 
                 imageUrl,
                 tags: tagsArray,
              };
@@ -199,7 +379,7 @@ export default function AdminProductsPage() {
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-xl">
+                    <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>{selectedProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                             <DialogDescription>
@@ -207,136 +387,21 @@ export default function AdminProductsPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <Form {...form}>
-                            <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                                <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Product Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g., Arduino Uno R3" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="shortDescription"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Short Description</FormLabel>
-                                            <FormControl>
-                                                <Textarea placeholder="A brief summary for the product page." {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="description"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Full Description</FormLabel>
-                                            <FormControl>
-                                                <Textarea placeholder="The complete product description for the details tab." {...field} rows={6}/>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="category"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                            <SelectValue placeholder="Select a category" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Kits">Kits</SelectItem>
-                                            <SelectItem value="Components">Components</SelectItem>
-                                        </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="price"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Price (₹)</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" placeholder="e.g., 39.99" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="originalPrice"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Original Price (₹)</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" placeholder="e.g., 59.99" {...field} value={field.value ?? ''} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                                <FormField
-                                    control={form.control}
-                                    name="stock"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Stock Quantity</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 100" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="tags"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Tags</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g., arduino, beginner, robotics" {...field} />
-                                            </FormControl>
-                                             <FormDescription>
-                                                Comma-separated tags for product discovery.
-                                            </FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                 <FormItem>
+                            <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                               <ProductFormFields />
+                                <FormItem>
                                     <FormLabel>Product Image</FormLabel>
                                     <FormControl>
                                         <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
                                     </FormControl>
-                                     <FormDescription>
+                                        <FormDescription>
                                         Upload a new image. If none is chosen, a default image will be used.
                                     </FormDescription>
                                 </FormItem>
                             </form>
                         </Form>
                         <DialogFooter>
+                             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                             <Button type="submit" form="product-form" disabled={form.formState.isSubmitting || isUploading}>
                                 {(form.formState.isSubmitting || isUploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 {selectedProduct ? 'Save Changes' : 'Create Product'}
@@ -365,7 +430,7 @@ export default function AdminProductsPage() {
                         <TableBody>
                             {products.length > 0 ? products.map(product => {
                                 const productImage = PlaceHolderImages.find(p => p.id === (product.imageIds && product.imageIds[0] || 'ai-product'));
-                                const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+                                const hasDiscount = product.costPrice && product.costPrice > product.price;
 
                                 return (
                                 <TableRow key={product.firestoreId}>
@@ -385,7 +450,7 @@ export default function AdminProductsPage() {
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span>₹{product.price.toFixed(2)}</span>
-                                            {hasDiscount && <span className="text-xs text-muted-foreground line-through">₹{product.originalPrice?.toFixed(2)}</span>}
+                                            {hasDiscount && <span className="text-xs text-muted-foreground line-through">₹{product.costPrice?.toFixed(2)}</span>}
                                         </div>
                                     </TableCell>
                                     <TableCell>{product.stock}</TableCell>
@@ -430,12 +495,10 @@ export default function AdminProductsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
     );
 }
-
-    

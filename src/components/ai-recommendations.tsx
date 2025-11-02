@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -55,14 +56,6 @@ export default function AiRecommendations() {
         description: result.error,
       });
     } else {
-      const recommendedProducts: Product[] = result.products.map((p, index) => ({
-        id: `rec-${index}`,
-        name: p.name,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        imageId: 'ai-product', // Generic image for AI recommended products
-        category: 'Recommendation'
-      }));
       setRecommendations(result.products);
     }
   }
@@ -140,9 +133,10 @@ export default function AiRecommendations() {
                   id: `rec-${index}`,
                   name: product.name,
                   price: product.price,
-                  originalPrice: product.originalPrice,
-                  imageId: 'ai-product',
+                  costPrice: product.originalPrice,
+                  imageIds: ['ai-product'],
                   category: 'Recommendation',
+                  stock: 1, // dummy value
                   description: product.description,
                   imageUrl: product.imageUrl,
                 }} />
@@ -154,3 +148,4 @@ export default function AiRecommendations() {
     </Card>
   );
 }
+

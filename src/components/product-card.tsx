@@ -49,16 +49,16 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   }, [buttonState]);
 
-  const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+  const hasDiscount = product.costPrice && product.costPrice > product.price;
   const discountPercentage = hasDiscount
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
     : 0;
   
   const primaryImageId = product.imageIds && product.imageIds.length > 0 ? product.imageIds[0] : 'ai-product';
   const productImage = placeholderImages.find((p) => p.id === primaryImageId);
   const imageSrc = product.imageUrl || productImage?.imageUrl;
   const imageHint = productImage?.imageHint;
-  const productLink = product.firestoreId ? `/shop/${product.id}` : `/shop/${product.id}`;
+  const productLink = `/shop/${product.id}`;
 
 
   return (
@@ -103,7 +103,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="mt-2 flex items-baseline gap-2">
             {hasDiscount && (
               <span className="text-sm text-muted-foreground line-through">
-                ₹{product.originalPrice?.toFixed(2)}
+                ₹{product.costPrice?.toFixed(2)}
               </span>
             )}
             <span className="text-lg font-bold text-foreground">

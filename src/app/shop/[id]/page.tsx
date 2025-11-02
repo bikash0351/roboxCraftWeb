@@ -5,7 +5,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle } from "lucide-react";
 import {
   Popover,
@@ -86,7 +86,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               limit(4)
             );
             const similarSnap = await getDocs(similarQuery);
-            const similarData = similarSnap.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product));
+            const similarData = similarSnap.docs.map(doc => ({ ...doc.data(), id: doc.data().id || doc.id } as Product));
             setSimilarProducts(similarData);
           }
 
@@ -121,9 +121,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     .filter(Boolean);
 
   const selectedImage = productImages?.[selectedImageIndex];
-  const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+  const hasDiscount = product.costPrice && product.costPrice > product.price;
   const discountPercentage = hasDiscount
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
     : 0;
 
   return (
@@ -219,7 +219,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           <div className="mt-4 flex items-baseline gap-2">
             {hasDiscount && (
               <span className="text-xl text-muted-foreground line-through">
-                ₹{product.originalPrice?.toFixed(2)}
+                ₹{product.costPrice?.toFixed(2)}
               </span>
             )}
             <span className="text-3xl font-bold text-foreground">

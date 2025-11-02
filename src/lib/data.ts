@@ -4,7 +4,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  originalPrice?: number;
+  costPrice?: number;
   imageIds: string[];
   category: 'Kits' | 'Components' | 'Recommendation';
   stock: number;
@@ -20,7 +20,7 @@ export interface ProductRecommendation {
   description: string;
   imageUrl: string;
   price: number;
-  originalPrice?: number;
+  costPrice?: number;
 }
 
 export interface Course {
