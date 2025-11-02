@@ -212,7 +212,7 @@ export default function MyAddressesPage() {
                         <DialogTitle>{selectedAddress ? 'Edit Address' : 'Add a New Address'}</DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                             <FormField control={form.control} name="name" render={({ field }) => (
                                 <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
@@ -247,7 +247,7 @@ export default function MyAddressesPage() {
                                     </RadioGroup>
                                 </FormControl><FormMessage /></FormItem>
                             )}/>
-                            <DialogFooter className="pt-4">
+                            <DialogFooter className="pt-4 col-span-full">
                                 <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
                                      {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
