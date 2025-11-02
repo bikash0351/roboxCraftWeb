@@ -17,7 +17,7 @@ export default function AccountPage() {
 
     useEffect(() => {
         if (!loading && !user) {
-            router.replace('/login');
+            router.replace('/login?redirect=/account');
         }
     }, [user, loading, router]);
 
@@ -35,12 +35,12 @@ export default function AccountPage() {
 
     return (
         <div className="container mx-auto max-w-4xl py-8 px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center gap-4 md:flex-row md:items-start">
+            <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-start md:text-left">
                 <Avatar className="h-24 w-24">
                     {userImage && <AvatarImage src={userImage} alt={user.displayName || "User"} />}
                     <AvatarFallback>{userInitial.toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div className="text-center md:text-left">
+                <div>
                     <h1 className="font-headline text-3xl font-bold">{user.displayName || "User"}</h1>
                     <p className="text-muted-foreground">{user.email}</p>
                 </div>
@@ -83,3 +83,5 @@ export default function AccountPage() {
         </div>
     );
 }
+
+    
