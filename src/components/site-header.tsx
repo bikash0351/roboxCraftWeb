@@ -2,31 +2,28 @@
 "use client";
 
 import Link from "next/link";
-import { LogIn, Search, User } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Search } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Input } from "./ui/input";
-import { useAuth } from "@/hooks/use-auth";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import { Skeleton } from "./ui/skeleton";
+import React from "react";
+
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const { user, signOut, loading } = useAuth();
-  const userImage = user?.photoURL;
-  const userInitial = user?.displayName?.charAt(0) || user?.email?.charAt(0) || "?";
+  const router = useRouter();
 
   if (pathname === "/reels") {
     return null;
+  }
+  
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const searchQuery = formData.get('search') as string;
+    if(searchQuery) {
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
   }
 
   return (
@@ -41,14 +38,15 @@ export function SiteHeader() {
         </Link>
 
         <div className="flex-1">
-          <div className="relative w-full">
+          <form onSubmit={handleSearch} className="relative w-full">
             <Input
               type="search"
+              name="search"
               placeholder="Search for products"
               className="pl-10"
             />
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          </form>
         </div>
 
         <div className="flex items-center gap-4">
