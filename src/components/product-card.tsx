@@ -99,11 +99,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </CardHeader>
         <CardContent className="flex-1 p-4 pb-2">
           <h3 className="line-clamp-2 font-semibold h-12">{product.name}</h3>
-          {product.shortDescription && (
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-              {product.shortDescription}
-            </p>
-          )}
+          
           <div className="mt-2 flex items-baseline gap-2">
             {hasDiscount && (
               <span className="text-sm text-muted-foreground line-through">
