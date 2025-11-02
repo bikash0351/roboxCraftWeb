@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -33,7 +33,7 @@ const checkoutSchema = z.object({
   }),
 });
 
-export default function CheckoutPage() {
+function CheckoutForm() {
     const { user, loading: authLoading } = useAuth();
     const { items, totalPrice, clearCart, loading: cartLoading } = useCart();
     const router = useRouter();
@@ -154,7 +154,7 @@ export default function CheckoutPage() {
                                         <FormItem className="sm:col-span-2">
                                             <FormLabel>Full Name</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Your Name" {...field} />
+                                                <Input placeholder="Your Name" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
                                         <FormItem className="sm:col-span-2">
                                             <FormLabel>Email Address</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="you@example.com" type="email" {...field} readOnly />
+                                                <Input placeholder="you@example.com" type="email" {...field} value={field.value ?? ''} readOnly />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -180,7 +180,7 @@ export default function CheckoutPage() {
                                         <FormItem className="sm:col-span-2">
                                             <FormLabel>Address</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Your Address" {...field} />
+                                                <Input placeholder="Your Address" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -193,7 +193,7 @@ export default function CheckoutPage() {
                                         <FormItem>
                                             <FormLabel>City</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Your City" {...field} />
+                                                <Input placeholder="Your City" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -206,7 +206,7 @@ export default function CheckoutPage() {
                                         <FormItem>
                                             <FormLabel>Postal Code</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Your Postal Code" {...field} />
+                                                <Input placeholder="Your Postal Code" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -219,7 +219,7 @@ export default function CheckoutPage() {
                                         <FormItem className="sm:col-span-2">
                                             <FormLabel>Country</FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -323,3 +323,17 @@ export default function CheckoutPage() {
         </div>
     );
 }
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </div>
+        }>
+            <CheckoutForm />
+        </Suspense>
+    )
+}
+
+    
