@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, MapPin, Plus, Home, Briefcase, Trash2, Edit } from "lucide-react";
 import { useRouter } from "next/navigation";
