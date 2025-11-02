@@ -4,7 +4,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -19,7 +19,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export default function LoginPage() {
+function LoginForm() {
   const { user, loading, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -74,4 +74,16 @@ export default function LoginPage() {
       </Card>
     </div>
   );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="container mx-auto flex h-[80vh] flex-col items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
+    )
 }

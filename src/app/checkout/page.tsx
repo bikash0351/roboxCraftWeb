@@ -311,6 +311,7 @@ function CheckoutForm() {
                                         <span>Total</span>
                                         <span>₹{total.toFixed(2)}</span>
                                     </div>
+
                                 </div>
                             </CardContent>
                         </Card>
