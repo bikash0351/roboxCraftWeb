@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -25,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Textarea } from "@/components/ui/textarea";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -34,6 +36,9 @@ const productSchema = z.object({
   originalPrice: z.coerce.number().optional(),
   stock: z.coerce.number().min(0, "Stock can't be negative"),
   imageUrl: z.string().optional(),
+  shortDescription: z.string().optional(),
+  description: z.string().optional(),
+  tags: z.string().optional(),
 });
 
 type ProductWithId = Product & { firestoreId: string };
@@ -59,6 +64,9 @@ export default function AdminProductsPage() {
             originalPrice: undefined,
             stock: 0,
             imageUrl: "",
+            shortDescription: "",
+            description: "",
+            tags: "",
         },
     });
      
@@ -95,6 +103,7 @@ export default function AdminProductsPage() {
             form.reset({
                 ...product,
                 originalPrice: product.originalPrice || undefined,
+                tags: product.tags?.join(', ') || '',
             });
         } else {
             form.reset({
@@ -104,6 +113,9 @@ export default function AdminProductsPage() {
                 originalPrice: undefined,
                 stock: 0,
                 imageUrl: "",
+                shortDescription: "",
+                description: "",
+                tags: "",
             });
         }
         setDialogOpen(true);
@@ -119,26 +131,27 @@ export default function AdminProductsPage() {
         let imageUrl = selectedProduct?.imageUrl || '';
 
         try {
-            // If there's a new file, upload it and get the URL
             if (imageFile) {
                 const storageRef = ref(storage, `products/${Date.now()}-${imageFile.name}`);
                 await uploadBytes(storageRef, imageFile);
                 imageUrl = await getDownloadURL(storageRef);
             }
 
-            const productData = { ...values, imageUrl };
+            const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+            const productData = { 
+                ...values, 
+                imageUrl,
+                tags: tagsArray,
+             };
 
             if (selectedProduct) {
-                // Editing an existing product
                 const productRef = doc(db, "products", selectedProduct.firestoreId);
                 await updateDoc(productRef, productData);
                 toast({ title: "Product Updated", description: `${values.name} has been updated.` });
             } else {
-                // Adding a new product
                 await addDoc(collection(db, "products"), {
                     ...productData,
                     id: `prod-${Date.now()}`,
-                    // Assign a default image ID if no image is uploaded
                     imageIds: productData.imageUrl ? [] : ['ai-product'],
                 });
                 toast({ title: "Product Added", description: `${values.name} has been added.` });
@@ -158,7 +171,7 @@ export default function AdminProductsPage() {
         try {
             await deleteDoc(doc(db, "products", selectedProduct.firestoreId));
             toast({ title: "Product Deleted", description: `${selectedProduct.name} has been deleted.` });
-            fetchProducts(); // Refresh data
+            fetchProducts();
             setDeleteAlertOpen(false);
         } catch (error) {
             console.error("Error deleting product: ", error);
@@ -186,7 +199,7 @@ export default function AdminProductsPage() {
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>{selectedProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                             <DialogDescription>
@@ -194,7 +207,7 @@ export default function AdminProductsPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <Form {...form}>
-                            <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                            <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                                 <FormField
                                     control={form.control}
                                     name="name"
@@ -203,6 +216,32 @@ export default function AdminProductsPage() {
                                             <FormLabel>Product Name</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g., Arduino Uno R3" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="shortDescription"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Short Description</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder="A brief summary for the product page." {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="description"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Full Description</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder="The complete product description for the details tab." {...field} rows={6}/>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -237,7 +276,7 @@ export default function AdminProductsPage() {
                                             <FormItem>
                                                 <FormLabel>Price (₹)</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" placeholder="e.g., 39.99" {...field} />
+                                                    <Input type="number" step="0.01" placeholder="e.g., 39.99" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -250,7 +289,7 @@ export default function AdminProductsPage() {
                                             <FormItem>
                                                 <FormLabel>Original Price (₹)</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" placeholder="e.g., 59.99" {...field} value={field.value ?? ''} />
+                                                    <Input type="number" step="0.01" placeholder="e.g., 59.99" {...field} value={field.value ?? ''} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -270,10 +309,26 @@ export default function AdminProductsPage() {
                                         </FormItem>
                                     )}
                                 />
+                                <FormField
+                                    control={form.control}
+                                    name="tags"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tags</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g., arduino, beginner, robotics" {...field} />
+                                            </FormControl>
+                                             <FormDescription>
+                                                Comma-separated tags for product discovery.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                                  <FormItem>
                                     <FormLabel>Product Image</FormLabel>
                                     <FormControl>
-                                        <Input type="file" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
+                                        <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
                                     </FormControl>
                                      <FormDescription>
                                         Upload a new image. If none is chosen, a default image will be used.

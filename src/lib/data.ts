@@ -10,6 +10,9 @@ export interface Product {
   stock: number;
   firestoreId?: string;
   imageUrl?: string;
+  description?: string;
+  shortDescription?: string;
+  tags?: string[];
 }
 
 export interface ProductRecommendation {

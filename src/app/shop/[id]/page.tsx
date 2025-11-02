@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -20,8 +21,9 @@ import { ProductCard } from "@/components/product-card";
 import { AddToCartButton } from "./add-to-cart-button";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where, limit, or } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 
 function ShareButtons() {
@@ -55,9 +57,10 @@ function ShareButtons() {
 }
 
 
-export default function ProductDetailPage({ params: { id } }: { params: { id: string } }) {
+export default function ProductDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
@@ -71,19 +74,21 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
         
         if (!productSnapshots.empty) {
           const productDoc = productSnapshots.docs[0];
-          const productData = { firestoreId: productDoc.id, ...productDoc.data() } as Product & { firestoreId: string };
+          const productData = { firestoreId: productDoc.id, ...productDoc.data() } as Product;
           setProduct(productData);
 
-          // Fetch related products
-          const relatedQuery = query(
-            collection(db, "products"),
-            where("category", "==", productData.category),
-            where("id", "!=", productData.id),
-            limit(4)
-          );
-          const relatedSnap = await getDocs(relatedQuery);
-          const relatedData = relatedSnap.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product & { firestoreId: string }));
-          setRelatedProducts(relatedData);
+          // Fetch similar products based on tags
+          if (productData.tags && productData.tags.length > 0) {
+            const similarQuery = query(
+              collection(db, "products"),
+              where("tags", "array-contains-any", productData.tags),
+              where("id", "!=", productData.id),
+              limit(4)
+            );
+            const similarSnap = await getDocs(similarQuery);
+            const similarData = similarSnap.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product));
+            setSimilarProducts(similarData);
+          }
 
         } else {
           notFound();
@@ -117,6 +122,9 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
 
   const selectedImage = productImages?.[selectedImageIndex];
   const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+  const discountPercentage = hasDiscount
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
 
   return (
     <div className="container mx-auto max-w-6xl py-8 px-4 sm:px-6 lg:px-8">
@@ -155,6 +163,14 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
                 priority
               />
             )}
+            {hasDiscount && (
+              <Badge
+                variant="destructive"
+                className="absolute top-3 left-3 rounded-full h-12 w-12 flex items-center justify-center text-lg font-bold bg-primary text-primary-foreground border-2 border-background"
+              >
+                -{discountPercentage}%
+              </Badge>
+            )}
           </div>
           {productImages && productImages.length > 1 && (
             <div className="mt-4 grid grid-cols-5 gap-2">
@@ -189,9 +205,7 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
         <div className="flex flex-col">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">{product.name}</h1>
           
-           <p className="mt-2 text-muted-foreground">
-            A brief, compelling description of the product would go here, highlighting key features.
-          </p>
+           {product.shortDescription && <p className="mt-2 text-muted-foreground text-lg">{product.shortDescription}</p>}
           
           <div className="mt-4 flex items-center gap-2">
             <div className="flex items-center">
@@ -244,13 +258,7 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
             </TabsList>
             <TabsContent value="description" className="py-6">
                  <div className="prose prose-sm max-w-none text-muted-foreground">
-                    <p>This is where a more detailed, long-form description of the product would live. It can include multiple paragraphs, lists, and other rich text elements to fully describe the product's features, benefits, and specifications.</p>
-                    <ul>
-                        <li>Feature one: Explain what it is and why it's great.</li>
-                        <li>Feature two: Detail the benefits for the user.</li>
-                        <li>Feature three: Provide technical specs if applicable.</li>
-                    </ul>
-                    <p>Continue with more information, usage examples, or compatibility notes to help the customer make an informed decision.</p>
+                    {product.description ? <p>{product.description}</p> : <p>No full description available for this product.</p>}
                 </div>
             </TabsContent>
             <TabsContent value="reviews" className="py-6">
@@ -288,16 +296,16 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
         </Tabs>
       </div>
 
-      {relatedProducts.length > 0 && (
+      {similarProducts.length > 0 && (
         <div className="mt-16">
           <div className="flex items-center justify-between">
-            <h2 className="font-headline text-3xl font-bold tracking-tight">Related Products</h2>
+            <h2 className="font-headline text-3xl font-bold tracking-tight">Similar Products</h2>
             <Button variant="link" asChild>
               <Link href="/shop">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
             </Button>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {relatedProducts.map((p) => (
+            {similarProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
@@ -307,3 +315,4 @@ export default function ProductDetailPage({ params: { id } }: { params: { id: st
   );
 
     
+}
