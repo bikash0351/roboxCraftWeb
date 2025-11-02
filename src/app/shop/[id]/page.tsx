@@ -5,7 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Star, Loader2 } from "lucide-react";
+import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 import { type Product } from "@/lib/data";
 import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
@@ -16,6 +21,37 @@ import { AddToCartButton } from "./add-to-cart-button";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
+
+function ShareButtons() {
+    const [pageUrl, setPageUrl] = useState('');
+
+    useEffect(() => {
+        setPageUrl(window.location.href);
+    }, []);
+
+    const shareText = "Check out this awesome product!";
+
+    return (
+        <div className="flex gap-2">
+             <Button asChild variant="outline" size="icon">
+                <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`} target="_blank" rel="noopener noreferrer">
+                    <Facebook className="h-5 w-5" />
+                </a>
+            </Button>
+            <Button asChild variant="outline" size="icon">
+                <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer">
+                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+                </a>
+            </Button>
+            <Button asChild variant="outline" size="icon">
+                <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + pageUrl)}`} target="_blank" rel="noopener noreferrer">
+                   <MessageCircle className="h-5 w-5" />
+                </a>
+            </Button>
+        </div>
+    )
+}
+
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -28,11 +64,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       if (!params.id) return;
       setLoading(true);
       try {
-        const productRef = doc(db, "products", params.id);
-        const productSnap = await getDoc(productRef);
-
-        if (productSnap.exists()) {
-          const productData = { id: productSnap.id, ...productSnap.data() } as Product;
+        const productQuery = query(collection(db, "products"), where("id", "==", params.id), limit(1));
+        const productSnapshots = await getDocs(productQuery);
+        
+        if (!productSnapshots.empty) {
+          const productDoc = productSnapshots.docs[0];
+          const productData = { firestoreId: productDoc.id, ...productDoc.data() } as Product & { firestoreId: string };
           setProduct(productData);
 
           // Fetch related products
@@ -43,7 +80,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             limit(4)
           );
           const relatedSnap = await getDocs(relatedQuery);
-          const relatedData = relatedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+          const relatedData = relatedSnap.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product & { firestoreId: string }));
           setRelatedProducts(relatedData);
 
         } else {
@@ -80,8 +117,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const hasDiscount = product.originalPrice && product.originalPrice > product.price;
 
   return (
-    <div className="container mx-auto max-w-5xl py-8 px-4 sm:px-6 lg:px-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="container mx-auto max-w-6xl py-8 px-4 sm:px-6 lg:px-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+        {/* Left Column - Image Gallery */}
         <div>
           <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-muted">
             {selectedImage && (
@@ -98,6 +136,16 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
              {!selectedImage && product.imageUrl && (
                 <Image
                 src={product.imageUrl}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
+              />
+            )}
+             {!selectedImage && !product.imageUrl && (
+                <Image
+                src={"https://placehold.co/600x600"}
                 alt={product.name}
                 fill
                 className="object-cover"
@@ -134,9 +182,16 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             </div>
           )}
         </div>
-        <div className="flex flex-col justify-center">
+
+        {/* Right Column - Product Details */}
+        <div className="flex flex-col">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">{product.name}</h1>
-          <div className="mt-2 flex items-center gap-2">
+          
+           <p className="mt-2 text-muted-foreground">
+            A brief, compelling description of the product would go here, highlighting key features.
+          </p>
+          
+          <div className="mt-4 flex items-center gap-2">
             <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
                     <Star key={i} className={`h-5 w-5 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
@@ -162,15 +217,73 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <AddToCartButton product={product} />
             <Button size="lg" className="w-full sm:w-auto">Buy Now</Button>
           </div>
-
-          <div className="mt-8">
-            <h2 className="text-xl font-bold font-headline">Description</h2>
-            <p className="mt-4 text-muted-foreground">
-              A brief, compelling description of the product would go here. It would highlight the key features and benefits for the customer.
-            </p>
-          </div>
-
+           
+           <div className="mt-6 flex items-center gap-4">
+                <Popover>
+                    <PopoverTrigger asChild>
+                         <Button variant="outline" className="w-full sm:w-auto">
+                            <Share2 className="mr-2 h-4 w-4" /> Share
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto">
+                        <ShareButtons />
+                    </PopoverContent>
+                </Popover>
+           </div>
         </div>
+      </div>
+
+      {/* Full Description & Reviews */}
+       <div className="mt-16">
+        <Tabs defaultValue="description" className="w-full">
+            <TabsList>
+                <TabsTrigger value="description">Description</TabsTrigger>
+                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            </TabsList>
+            <TabsContent value="description" className="py-6">
+                 <div className="prose prose-sm max-w-none text-muted-foreground">
+                    <p>This is where a more detailed, long-form description of the product would live. It can include multiple paragraphs, lists, and other rich text elements to fully describe the product's features, benefits, and specifications.</p>
+                    <ul>
+                        <li>Feature one: Explain what it is and why it's great.</li>
+                        <li>Feature two: Detail the benefits for the user.</li>
+                        <li>Feature three: Provide technical specs if applicable.</li>
+                    </ul>
+                    <p>Continue with more information, usage examples, or compatibility notes to help the customer make an informed decision.</p>
+                </div>
+            </TabsContent>
+            <TabsContent value="reviews" className="py-6">
+                <h3 className="text-xl font-bold font-headline mb-4">Customer Reviews</h3>
+                <div className="space-y-6">
+                    {/* Placeholder Review 1 */}
+                    <div className="border-b pb-4">
+                        <div className="flex items-center mb-2">
+                           <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                                ))}
+                            </div>
+                            <p className="ml-4 font-semibold">Great Kit!</p>
+                        </div>
+                        <p className="text-muted-foreground">This was the perfect starter kit for my son. He loved it!</p>
+                        <p className="text-xs text-muted-foreground mt-2">By John D. on July 24, 2024</p>
+                    </div>
+                    {/* Placeholder Review 2 */}
+                    <div className="border-b pb-4">
+                         <div className="flex items-center mb-2">
+                           <div className="flex items-center">
+                                {[...Array(4)].map((_, i) => (
+                                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                                ))}
+                                 <Star className="h-5 w-5 text-gray-300" />
+                            </div>
+                            <p className="ml-4 font-semibold">Good value</p>
+                        </div>
+                        <p className="text-muted-foreground">Had some trouble with one of the sensors, but customer support was helpful. Overall, a good product for the price.</p>
+                         <p className="text-xs text-muted-foreground mt-2">By Jane S. on July 22, 2024</p>
+                    </div>
+                </div>
+            </TabsContent>
+        </Tabs>
       </div>
 
       {relatedProducts.length > 0 && (
@@ -191,3 +304,5 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
+    

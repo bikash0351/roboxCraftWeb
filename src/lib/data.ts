@@ -1,4 +1,5 @@
 
+
 export interface Product {
   id: string;
   name: string;
@@ -6,8 +7,9 @@ export interface Product {
   originalPrice?: number;
   imageIds: string[];
   category: 'Kits' | 'Components' | 'Recommendation';
-  imageUrl?: string;
   stock: number;
+  firestoreId?: string;
+  imageUrl?: string;
 }
 
 export interface ProductRecommendation {
@@ -65,3 +67,5 @@ export const reels: Reel[] = [
 ];
 
 export const products: Product[] = [];
+
+    
