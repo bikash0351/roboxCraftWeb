@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -13,7 +14,6 @@ import { Loader2, Package, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
 
 interface Order {
@@ -114,19 +114,17 @@ export default function MyOrdersPage() {
                         </CardHeader>
                         <CardContent className="p-4 space-y-4">
                             {order.items.map((item) => {
-                                const productImage = placeholderImages.find(p => p.id === item.imageId);
+                                const imageSrc = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : "https://placehold.co/64x64";
                                 return (
                                 <div key={item.id} className="flex items-center gap-4">
                                      <div className="relative h-16 w-16 flex-shrink-0 rounded-md bg-muted">
-                                        {productImage && (
-                                            <Image 
-                                                src={productImage.imageUrl} 
-                                                alt={item.name} 
-                                                fill 
-                                                className="object-cover"
-                                                sizes="64px"
-                                            />
-                                        )}
+                                        <Image 
+                                            src={imageSrc} 
+                                            alt={item.name} 
+                                            fill 
+                                            className="object-cover"
+                                            sizes="64px"
+                                        />
                                     </div>
                                     <div className="flex-1">
                                         <p className="font-medium">{item.name}</p>

@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { Product } from "@/lib/data";
-import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
 import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { useCart } from "@/hooks/use-cart";
@@ -28,12 +27,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = () => {
     setButtonState("loading");
     setTimeout(() => {
-      const imageId = product.imageIds && product.imageIds.length > 0 ? product.imageIds[0] : 'ai-product';
-      const productToAdd = {
-        ...product,
-        imageId: imageId,
-      };
-      addItem(productToAdd);
+      addItem(product);
       setButtonState("added");
       toast({
           title: "Added to Cart",
@@ -54,10 +48,7 @@ export function ProductCard({ product }: ProductCardProps) {
     ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
     : 0;
   
-  const primaryImageId = product.imageIds && product.imageIds.length > 0 ? product.imageIds[0] : 'ai-product';
-  const productImage = placeholderImages.find((p) => p.id === primaryImageId);
-  const imageSrc = product.imageUrl || productImage?.imageUrl;
-  const imageHint = productImage?.imageHint;
+  const imageSrc = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : "https://placehold.co/400x400";
   const productLink = `/shop/${product.id}`;
 
 
@@ -66,24 +57,13 @@ export function ProductCard({ product }: ProductCardProps) {
       <Link href={productLink} className="flex flex-col flex-1">
         <CardHeader className="relative p-0">
           <div className="relative aspect-square w-full bg-muted">
-            {imageSrc ? (
-              <Image
+            <Image
                 src={imageSrc}
                 alt={product.name}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-                data-ai-hint={imageHint}
-              />
-            ) : (
-                 <Image
-                src={"https://placehold.co/400x400"}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-              />
-            )}
+            />
             {hasDiscount && (
               <Badge
                 variant="destructive"
@@ -99,7 +79,6 @@ export function ProductCard({ product }: ProductCardProps) {
         </CardHeader>
         <CardContent className="flex-1 p-4 pb-2">
           <h3 className="line-clamp-2 font-semibold h-12">{product.name}</h3>
-          
           <div className="mt-2 flex items-baseline gap-2">
             {hasDiscount && (
               <span className="text-sm text-muted-foreground line-through">
