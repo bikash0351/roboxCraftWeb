@@ -73,6 +73,7 @@ export default function AdminLayout({
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
     { href: "/admin/users", label: "Admin Users", icon: Users2 },
     { href: "/admin/account", label: "Account", icon: Settings },
