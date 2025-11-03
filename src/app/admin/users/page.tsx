@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import { collection, getDocs, query } from "firebase/firestore";
+import { Loader2, Trash2 } from "lucide-react";
+import { collection, getDocs, query, orderBy, Timestamp, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface AppUser {
-    id: string;
+    uid: string;
     email: string | null;
     displayName: string | null;
-    lastSeen: Date | null;
+    lastLoginTime: Timestamp | null;
+    photoURL?: string;
 }
 
 export default function AdminUsersPage() {
@@ -22,6 +25,7 @@ export default function AdminUsersPage() {
     const router = useRouter();
     const [users, setUsers] = useState<AppUser[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
+    const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
 
     useEffect(() => {
         if (!loading && !admin) {
@@ -30,44 +34,40 @@ export default function AdminUsersPage() {
     }, [admin, loading, router]);
 
 
-    useEffect(() => {
-        const fetchUsers = async () => {
-             if (admin) {
-                setDataLoading(true);
-                // This is a simplified approach. In a real-world scenario, you would have a dedicated 'users'
-                // collection that gets populated when a user signs up.
-                // For this demo, we'll derive the user list from the 'orders' collection.
-                try {
-                    const ordersQuery = query(collection(db, "orders"));
-                    const querySnapshot = await getDocs(ordersQuery);
-                    
-                    const uniqueUsers = new Map<string, AppUser>();
-
-                    querySnapshot.docs.forEach(doc => {
-                        const orderData = doc.data();
-                        if (orderData.userId && !uniqueUsers.has(orderData.userId)) {
-                            uniqueUsers.set(orderData.userId, {
-                                id: orderData.userId,
-                                // These fields are not in the order, so they are placeholders.
-                                // A real 'users' collection would have this info.
-                                email: `user_${orderData.userId.substring(0, 5)}@example.com`, 
-                                displayName: 'N/A',
-                                lastSeen: orderData.createdAt.toDate(),
-                            });
-                        }
-                    });
-
-                    setUsers(Array.from(uniqueUsers.values()));
-                } catch (error) {
-                    console.error("Error fetching users:", error);
-                } finally {
-                    setDataLoading(false);
-                }
+    const fetchUsers = async () => {
+         if (admin) {
+            setDataLoading(true);
+            try {
+                const usersQuery = query(collection(db, "users"), orderBy("lastLoginTime", "desc"));
+                const querySnapshot = await getDocs(usersQuery);
+                const usersData = querySnapshot.docs.map(doc => doc.data() as AppUser);
+                setUsers(usersData);
+            } catch (error) {
+                console.error("Error fetching users:", error);
+            } finally {
+                setDataLoading(false);
             }
-        };
+        }
+    };
 
+    useEffect(() => {
         fetchUsers();
     }, [admin]);
+
+    const handleDeleteUser = async () => {
+        if (!userToDelete) return;
+        
+        // Note: Deleting a user from Firestore does not delete them from Firebase Authentication.
+        // A Cloud Function would be required to do that securely. For this admin panel, we'll
+        // just remove their Firestore record.
+        try {
+            await deleteDoc(doc(db, "users", userToDelete.uid));
+            setUsers(users.filter(u => u.uid !== userToDelete.uid));
+            setUserToDelete(null);
+        } catch (error) {
+            console.error("Error deleting user:", error);
+        }
+    }
 
 
     if (loading || dataLoading ||!admin) {
@@ -86,24 +86,35 @@ export default function AdminUsersPage() {
              <Card>
                 <CardHeader>
                     <CardTitle>Registered Users</CardTitle>
-                    <CardDescription>A list of users who have placed orders.</CardDescription>
+                    <CardDescription>A list of all users who have signed up for your store.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {users.length > 0 ? (
-                        <ul className="divide-y divide-gray-200">
+                        <div className="divide-y divide-border">
                         {users.map(user => (
-                            <li key={user.id} className="py-4 flex justify-between items-center">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{user.displayName} ({user.id.substring(0, 7)})</p>
-                                    <p className="text-sm text-gray-500">{user.email}</p>
+                            <div key={user.uid} className="py-4 flex justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                     <Avatar>
+                                        <AvatarImage src={user.photoURL} />
+                                        <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="font-medium">{user.displayName || 'N/A'}</p>
+                                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-gray-500">Last Active</p>
-                                    <p className="text-sm text-gray-700">{user.lastSeen?.toLocaleDateString()}</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-sm font-medium">Last Active</p>
+                                        <p className="text-sm text-muted-foreground">{user.lastLoginTime ? new Date(user.lastLoginTime.seconds * 1000).toLocaleDateString() : 'Never'}</p>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => setUserToDelete(user)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
                                 </div>
-                            </li>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     ) : (
                         <div className="text-center py-12">
                             <p className="text-muted-foreground">No users found.</p>
@@ -111,6 +122,23 @@ export default function AdminUsersPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action will delete the user record for <span className="font-medium">{userToDelete?.email}</span> from the database. It cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
+
+    

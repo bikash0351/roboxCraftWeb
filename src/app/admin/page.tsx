@@ -55,10 +55,12 @@ export default function AdminDashboardPage() {
                 // --- Fetch All Data ---
                 const allOrdersQuery = query(collection(db, "orders"));
                 const allProductsQuery = query(collection(db, "products"));
+                const allUsersQuery = query(collection(db, "users"));
 
-                const [allOrdersSnapshot, allProductsSnapshot] = await Promise.all([
+                const [allOrdersSnapshot, allProductsSnapshot, allUsersSnapshot] = await Promise.all([
                     getDocs(allOrdersQuery),
                     getDocs(allProductsQuery),
+                    getDocs(allUsersQuery)
                 ]);
 
                 // --- Calculate Totals ---
@@ -69,8 +71,7 @@ export default function AdminDashboardPage() {
                 setTotalOrders(allOrdersSnapshot.size);
 
                 // Total Users
-                const userIds = new Set(allOrdersData.map(order => order.userId));
-                setTotalUsers(userIds.size);
+                setTotalUsers(allUsersSnapshot.size);
 
                 // Total Stock
                 const productsData = allProductsSnapshot.docs.map(doc => doc.data() as Product);
