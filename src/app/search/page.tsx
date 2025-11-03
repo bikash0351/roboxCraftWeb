@@ -3,44 +3,42 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { collection, getDocs, query, where, or } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { type Product } from "@/lib/data";
-import { ProductCard } from "@/components/product-card";
 import { Loader2, SearchX } from "lucide-react";
+import { ProductFilters } from "@/components/product-filters";
+import { useProductFilters } from "@/hooks/use-product-filters";
+import { ProductGrid } from "@/components/product-grid";
 
 function SearchResults() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [searchedProducts, setSearchedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
       if (!q) {
-        setProducts([]);
+        setSearchedProducts([]);
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
         const productsRef = collection(db, "products");
-        // Firestore doesn't support case-insensitive search natively, 
-        // and full-text search requires a third-party service like Algolia or Typesense.
-        // As a basic workaround, we can query for the exact match, but a real-world app would need a better solution.
-        // For this demo, we'll fetch all and filter client-side. This is NOT scalable.
         const querySnapshot = await getDocs(productsRef);
         const allProducts = querySnapshot.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product));
         
         const lowerCaseQuery = q.toLowerCase();
-        const filteredProducts = allProducts.filter(p => 
+        const filtered = allProducts.filter(p => 
             p.name.toLowerCase().includes(lowerCaseQuery) ||
             (p.description && p.description.toLowerCase().includes(lowerCaseQuery)) ||
             (p.shortDescription && p.shortDescription.toLowerCase().includes(lowerCaseQuery)) ||
             (p.tags && p.tags.some(tag => tag.toLowerCase().includes(lowerCaseQuery)))
         );
 
-        setProducts(filteredProducts);
+        setSearchedProducts(filtered);
       } catch (error) {
         console.error("Error searching products:", error);
       } finally {
@@ -50,6 +48,17 @@ function SearchResults() {
 
     fetchProducts();
   }, [q]);
+  
+  const {
+    filteredProducts,
+    filters,
+    setFilters,
+    sort,
+    setSort,
+    maxPrice,
+    highestPrice
+  } = useProductFilters(searchedProducts);
+
 
   if (loading) {
     return (
@@ -62,18 +71,28 @@ function SearchResults() {
 
   return (
     <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      {products.length > 0 ? (
+      {searchedProducts.length > 0 ? (
         <>
           <h1 className="text-3xl font-bold font-headline">
             Search results for &quot;{q}&quot;
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Found {products.length} matching products.
+            Found {filteredProducts.length} matching products.
           </p>
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {products.map((product) => (
-              <ProductCard key={product.firestoreId} product={product} />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-8">
+            <aside className="md:col-span-1">
+              <ProductFilters 
+                filters={filters}
+                setFilters={setFilters}
+                sort={sort}
+                setSort={setSort}
+                maxPrice={maxPrice}
+                highestPrice={highestPrice}
+              />
+            </aside>
+            <main className="md:col-span-3">
+              <ProductGrid products={filteredProducts} />
+            </main>
           </div>
         </>
       ) : (
