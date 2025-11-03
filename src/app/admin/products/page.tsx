@@ -453,10 +453,8 @@ export default function AdminProductsPage() {
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
-            const { ...productDataToSave } = values;
-            
             const productData = { 
-                ...productDataToSave, 
+                ...values, 
                 tags: tagsArray,
                 kitContents: values.category === 'Kits' ? kitContentsArray : [],
              };
