@@ -10,8 +10,10 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db, storage } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +21,7 @@ interface AuthContextType {
   createUserWithEmailPassword: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUserProfilePicture: (file: File) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -108,12 +111,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUserProfilePicture = async (file: File) => {
+    if (!user) throw new Error("User not authenticated");
+
+    // 1. Upload file to Firebase Storage
+    const filePath = `profile-images/${user.uid}/${file.name}`;
+    const storageRef = ref(storage, filePath);
+    await uploadBytes(storageRef, file);
+
+    // 2. Get download URL
+    const photoURL = await getDownloadURL(storageRef);
+
+    // 3. Update Firebase Auth user profile
+    await updateProfile(user, { photoURL });
+
+    // 4. Update user document in Firestore
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, { photoURL });
+
+    // 5. Update local user state to reflect change immediately
+    setUser({ ...user, photoURL });
+  };
+
+
   const value = {
     user,
     loading,
     createUserWithEmailPassword,
     signInWithEmailPassword,
     signOut,
+    updateUserProfilePicture,
   };
 
   return (

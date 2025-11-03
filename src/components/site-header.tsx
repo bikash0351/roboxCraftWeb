@@ -31,9 +31,9 @@ export function SiteHeader() {
       <div className="container mx-auto flex h-20 max-w-7xl items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2">
           <img
-            src="/roboxcraft.png"
+            src="/images/roboxcraft.png"
             alt="Roboxcraft Logo"
-            className="h-10 w-10 text-primary object-contain"
+            className="h-12 w-12 text-primary object-contain"
           />
         </Link>
         <div className="flex-1">
