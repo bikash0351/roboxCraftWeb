@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -6,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Image from "next/image";
-import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -386,19 +386,17 @@ function CheckoutForm() {
                             <CardContent className="space-y-4">
                                 <div className="space-y-4">
                                     {items.map(item => {
-                                        const productImage = placeholderImages.find(p => p.id === item.imageId);
+                                        const imageSrc = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : "https://placehold.co/64x64";
                                         return (
                                         <div key={item.id} className="flex items-center gap-4">
                                             <div className="relative h-16 w-16 flex-shrink-0 rounded-md bg-muted">
-                                            {productImage && (
                                                 <Image 
-                                                    src={productImage.imageUrl} 
+                                                    src={imageSrc} 
                                                     alt={item.name} 
                                                     fill 
                                                     className="object-cover"
                                                     sizes="64px"
                                                 />
-                                            )}
                                             <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
                                                 {item.quantity}
                                             </div>
@@ -476,5 +474,3 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -8,7 +9,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/use-cart";
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
-import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
 
 export default function CartPage() {
@@ -35,21 +35,18 @@ export default function CartPage() {
             <div className="mt-8 grid grid-cols-1 gap-12 lg:grid-cols-3 lg:items-start">
                 <div className="space-y-6 lg:col-span-2">
                     {items.map((item) => {
-                        const productImage = placeholderImages.find(p => p.id === item.imageId);
+                        const imageSrc = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : "https://placehold.co/96x96";
                         return (
                             <Card key={item.id} className="overflow-hidden">
                                 <CardContent className="flex items-center gap-4 p-4">
                                     <div className="relative h-24 w-24 flex-shrink-0 rounded-md bg-muted">
-                                        {productImage && (
-                                            <Image 
-                                                src={productImage.imageUrl} 
-                                                alt={item.name} 
-                                                fill 
-                                                className="object-cover"
-                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                data-ai-hint={productImage.imageHint}
-                                            />
-                                        )}
+                                        <Image 
+                                            src={imageSrc} 
+                                            alt={item.name} 
+                                            fill 
+                                            className="object-cover"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        />
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-semibold">{item.name}</h3>

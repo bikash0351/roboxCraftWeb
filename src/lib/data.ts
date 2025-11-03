@@ -5,11 +5,10 @@ export interface Product {
   name: string;
   price: number;
   costPrice?: number;
-  imageIds: string[];
   category: 'Kits' | 'Components' | 'Recommendation';
   stock: number;
   firestoreId?: string;
-  imageUrl?: string;
+  imageUrls?: string[];
   description?: string;
   shortDescription?: string;
   tags?: string[];

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, createContext, useEffect, type ReactNode, useCallback } from "react";
@@ -7,18 +8,13 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import type { Product } from "@/lib/data";
 
-// Keep the ProductInCart simple for local state before knowing the user.
-export interface ProductInCart extends Product {
-  imageId: string;
-}
-
-export interface CartItem extends ProductInCart {
+export interface CartItem extends Product {
   quantity: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: ProductInCart, quantity?: number) => void;
+  addItem: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => Promise<void>;
@@ -118,7 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addItem = (product: ProductInCart, quantity = 1) => {
+  const addItem = (product: Product, quantity = 1) => {
     const newItems = [...items];
     const existingItemIndex = newItems.findIndex((item) => item.id === product.id);
 

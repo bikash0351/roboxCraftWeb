@@ -4,7 +4,7 @@
 
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,12 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { type Product } from "@/lib/data";
-import { Loader2, PlusCircle, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, MoreHorizontal, Edit, Trash2, GripVertical } from "lucide-react";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ const productSchema = z.object({
   costPrice: z.coerce.number().optional(),
   discountPercentage: z.coerce.number().min(0).max(100).optional(),
   stock: z.coerce.number().min(0, "Stock can't be negative"),
-  imageUrl: z.string().optional(),
+  imageUrls: z.array(z.string()).default([]),
   shortDescription: z.string().optional(),
   description: z.string().optional(),
   tags: z.string().optional(),
@@ -46,6 +46,118 @@ const productSchema = z.object({
 });
 
 type ProductWithId = Product & { firestoreId: string };
+
+// --- Image Management Component ---
+function ImageManager({ control }: { control: any }) {
+    const { getValues, setValue } = useFormContext<z.infer<typeof productSchema>>();
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>(getValues('imageUrls') || []);
+    const [isUploading, setIsUploading] = useState(false);
+    const { toast } = useToast();
+
+    // Drag and Drop state
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            setImageFiles(Array.from(event.target.files));
+        }
+    };
+    
+    const handleUpload = async () => {
+        if (imageFiles.length === 0) return;
+        setIsUploading(true);
+
+        const uploadPromises = imageFiles.map(file => {
+            const storageRef = ref(storage, `products/${Date.now()}-${file.name}`);
+            return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
+        });
+
+        try {
+            const urls = await Promise.all(uploadPromises);
+            const currentUrls = getValues('imageUrls') || [];
+            const newUrls = [...currentUrls, ...urls];
+            setValue('imageUrls', newUrls);
+            setImagePreviews(newUrls);
+            setImageFiles([]); // Clear selected files
+            toast({ title: "Images uploaded successfully" });
+        } catch (error) {
+            console.error("Error uploading images: ", error);
+            toast({ variant: "destructive", title: "Upload Failed" });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+    
+    const removeImage = (index: number) => {
+        const currentUrls = getValues('imageUrls') || [];
+        const newUrls = currentUrls.filter((_, i) => i !== index);
+        setValue('imageUrls', newUrls);
+        setImagePreviews(newUrls);
+    };
+
+    // Drag and Drop handlers
+    const onDragStart = (index: number) => {
+        setDraggedIndex(index);
+    };
+
+    const onDragEnter = (index: number) => {
+        if (draggedIndex === null || draggedIndex === index) return;
+        
+        const currentUrls = [...imagePreviews];
+        const draggedItem = currentUrls.splice(draggedIndex, 1)[0];
+        currentUrls.splice(index, 0, draggedItem);
+        
+        setDraggedIndex(index);
+        setImagePreviews(currentUrls);
+        setValue('imageUrls', currentUrls);
+    };
+
+    const onDragEnd = () => {
+        setDraggedIndex(null);
+    };
+
+
+    return (
+        <FormItem>
+            <FormLabel>Product Images</FormLabel>
+            <FormDescription>Drag and drop to reorder images. The first image is the main one.</FormDescription>
+            <div className="space-y-4">
+                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                    {imagePreviews.map((url, index) => (
+                        <div 
+                            key={index} 
+                            className="relative aspect-square group"
+                            draggable
+                            onDragStart={() => onDragStart(index)}
+                            onDragEnter={() => onDragEnter(index)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDragEnd={onDragEnd}
+                        >
+                            <Image src={url} alt={`Product image ${index + 1}`} fill className="object-cover rounded-md" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-md">
+                                <Button type="button" variant="destructive" size="icon" className="h-8 w-8" onClick={() => removeImage(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <GripVertical className="absolute top-1 right-1 h-5 w-5 text-white/50 cursor-grab" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                 <div className="flex items-center gap-2">
+                    <FormControl>
+                        <Input type="file" accept="image/*" multiple onChange={handleFileChange} />
+                    </FormControl>
+                    <Button type="button" onClick={handleUpload} disabled={imageFiles.length === 0 || isUploading}>
+                        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Upload"}
+                    </Button>
+                </div>
+                <FormMessage />
+            </div>
+        </FormItem>
+    );
+}
+
 
 function ProductFormFields() {
     const { control, setValue, watch } = useFormContext<z.infer<typeof productSchema>>();
@@ -64,14 +176,12 @@ function ProductFormFields() {
         const discountChanged = discount !== discountPercentage;
 
         if (cost > 0) {
-            // If discount is changed, calculate price
             if (discountChanged) {
                  const newPrice = cost * (1 - discount / 100);
                  if (Math.abs(newPrice - currentPrice) > 0.01) {
                     setValue('price', Number(newPrice.toFixed(2)));
                  }
             } 
-            // If price is changed, calculate discount
             else if (priceChanged) {
                 if (currentPrice < cost) {
                     const newDiscount = ((cost - currentPrice) / cost) * 100;
@@ -249,8 +359,6 @@ export default function AdminProductsPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ProductWithId | null>(null);
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof productSchema>>({
@@ -262,7 +370,7 @@ export default function AdminProductsPage() {
             costPrice: undefined,
             discountPercentage: undefined,
             stock: 0,
-            imageUrl: "",
+            imageUrls: [],
             shortDescription: "",
             description: "",
             tags: "",
@@ -311,13 +419,13 @@ export default function AdminProductsPage() {
 
     const handleDialogOpen = (product: ProductWithId | null = null) => {
         setSelectedProduct(product);
-        setImageFile(null);
         if (product) {
             form.reset({
                 ...product,
                 costPrice: product.costPrice || undefined,
                 tags: product.tags?.join(', ') || '',
                 kitContents: product.kitContents?.join('\n') || '',
+                imageUrls: product.imageUrls || [],
             });
         } else {
             form.reset({
@@ -327,7 +435,7 @@ export default function AdminProductsPage() {
                 costPrice: undefined,
                 discountPercentage: undefined,
                 stock: 0,
-                imageUrl: "",
+                imageUrls: [],
                 shortDescription: "",
                 description: "",
                 tags: "",
@@ -343,16 +451,7 @@ export default function AdminProductsPage() {
     };
 
     const onSubmit = async (values: z.infer<typeof productSchema>) => {
-        setIsUploading(true);
-        let imageUrl = selectedProduct?.imageUrl || '';
-
         try {
-            if (imageFile) {
-                const storageRef = ref(storage, `products/${Date.now()}-${imageFile.name}`);
-                await uploadBytes(storageRef, imageFile);
-                imageUrl = await getDownloadURL(storageRef);
-            }
-
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
@@ -360,7 +459,6 @@ export default function AdminProductsPage() {
             
             const productData = { 
                 ...productDataToSave, 
-                imageUrl,
                 tags: tagsArray,
                 kitContents: values.category === 'Kits' ? kitContentsArray : [],
              };
@@ -373,7 +471,6 @@ export default function AdminProductsPage() {
                 await addDoc(collection(db, "products"), {
                     ...productData,
                     id: `prod-${Date.now()}`,
-                    imageIds: productData.imageUrl ? [] : ['ai-product'],
                 });
                 toast({ title: "Product Added", description: `${values.name} has been added.` });
             }
@@ -382,8 +479,6 @@ export default function AdminProductsPage() {
         } catch (error) {
             console.error("Error saving product: ", error);
             toast({ variant: "destructive", title: "Save Failed", description: "Could not save product to the database." });
-        } finally {
-            setIsUploading(false);
         }
     };
 
@@ -429,8 +524,8 @@ export default function AdminProductsPage() {
                     </TableHeader>
                     <TableBody>
                         {products.length > 0 ? products.map(product => {
-                            const productImage = PlaceHolderImages.find(p => p.id === (product.imageIds && product.imageIds[0] || 'ai-product'));
                             const hasDiscount = product.costPrice && product.costPrice > product.price;
+                            const imageSrc = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : "https://placehold.co/64x64";
 
                             return (
                             <TableRow key={product.firestoreId}>
@@ -439,7 +534,7 @@ export default function AdminProductsPage() {
                                         alt={product.name}
                                         className="aspect-square rounded-md object-cover"
                                         height="64"
-                                        src={product.imageUrl || productImage?.imageUrl || "https://placehold.co/64x64"}
+                                        src={imageSrc}
                                         width="64"
                                     />
                                 </TableCell>
@@ -504,21 +599,13 @@ export default function AdminProductsPage() {
                         <Form {...form}>
                             <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                                <ProductFormFields />
-                                <FormItem>
-                                    <FormLabel>Product Image</FormLabel>
-                                    <FormControl>
-                                        <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
-                                    </FormControl>
-                                        <FormDescription>
-                                        Upload a new image. If none is chosen, a default image will be used.
-                                    </FormDescription>
-                                </FormItem>
+                                <ImageManager control={form.control} />
                             </form>
                         </Form>
                         <DialogFooter>
                              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" form="product-form" disabled={form.formState.isSubmitting || isUploading}>
-                                {(form.formState.isSubmitting || isUploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            <Button type="submit" form="product-form" disabled={form.formState.isSubmitting}>
+                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {selectedProduct ? 'Save Changes' : 'Create Product'}
                             </Button>
                         </DialogFooter>
@@ -555,3 +642,4 @@ export default function AdminProductsPage() {
         </div>
     );
 }
+

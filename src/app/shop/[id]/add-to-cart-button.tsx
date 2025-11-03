@@ -17,12 +17,7 @@ export function AddToCartButton({ product }: { product: Product }) {
   const handleAddToCart = () => {
     setButtonState("loading");
     setTimeout(() => {
-      const imageId = product.imageIds && product.imageIds.length > 0 ? product.imageIds[0] : 'ai-product';
-      const productToAdd = {
-        ...product,
-        imageId,
-      };
-      addItem(productToAdd);
+      addItem(product);
       setButtonState("added");
       toast({
         title: "Added to Cart",
@@ -66,5 +61,3 @@ export function AddToCartButton({ product }: { product: Product }) {
     </Button>
   );
 }
-
-    

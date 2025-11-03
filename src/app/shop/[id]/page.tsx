@@ -5,7 +5,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck } from "lucide-react";
 import {
   Popover,
@@ -14,14 +14,13 @@ import {
 } from "@/components/ui/popover"
 
 import { type Product } from "@/lib/data";
-import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
 import { AddToCartButton } from "./add-to-cart-button";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query, where, limit, or } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
@@ -116,11 +115,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     return notFound();
   }
   
-  const productImages = product.imageIds
-    ?.map((id) => placeholderImages.find((p) => p.id === id))
-    .filter(Boolean);
+  const productImages = product.imageUrls || [];
+  const selectedImageUrl = productImages[selectedImageIndex] || "https://placehold.co/600x600";
 
-  const selectedImage = productImages?.[selectedImageIndex];
   const hasDiscount = product.costPrice && product.costPrice > product.price;
   const discountPercentage = hasDiscount
     ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
@@ -132,37 +129,14 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         {/* Left Column - Image Gallery */}
         <div>
           <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-muted">
-            {selectedImage && (
               <Image
-                src={product.imageUrl || selectedImage.imageUrl}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                data-ai-hint={selectedImage.imageHint}
-                priority
-              />
-            )}
-             {!selectedImage && product.imageUrl && (
-                <Image
-                src={product.imageUrl}
+                src={selectedImageUrl}
                 alt={product.name}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 50vw"
                 priority
               />
-            )}
-             {!selectedImage && !product.imageUrl && (
-                <Image
-                src={"https://placehold.co/600x600"}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority
-              />
-            )}
             {hasDiscount && (
               <Badge
                 variant="destructive"
@@ -174,10 +148,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
           {productImages && productImages.length > 1 && (
             <div className="mt-4 grid grid-cols-5 gap-2">
-              {productImages.map((image, index) => (
-                image && (
+              {productImages.map((url, index) => (
                   <button
-                    key={image.id}
+                    key={index}
                     onClick={() => setSelectedImageIndex(index)}
                     className={cn(
                       "relative aspect-square w-full rounded-md overflow-hidden transition-all",
@@ -187,15 +160,13 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     )}
                   >
                     <Image
-                      src={image.imageUrl}
+                      src={url}
                       alt={`${product.name} thumbnail ${index + 1}`}
                       fill
                       className="object-cover"
                       sizes="20vw"
-                      data-ai-hint={image.imageHint}
                     />
                   </button>
-                )
               ))}
             </div>
           )}
