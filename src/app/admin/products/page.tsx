@@ -5,7 +5,7 @@
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useForm, useFormContext } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { type Product } from "@/lib/data";
 import { Loader2, PlusCircle, MoreHorizontal, Edit, Trash2, GripVertical } from "lucide-react";
 import Image from "next/image";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -48,8 +47,8 @@ const productSchema = z.object({
 type ProductWithId = Product & { firestoreId: string };
 
 // --- Image Management Component ---
-function ImageManager({ control }: { control: any }) {
-    const { getValues, setValue } = useFormContext<z.infer<typeof productSchema>>();
+function ImageManager() {
+    const { getValues, setValue, control } = useForm<z.infer<typeof productSchema>>();
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>(getValues('imageUrls') || []);
     const [isUploading, setIsUploading] = useState(false);
@@ -160,7 +159,7 @@ function ImageManager({ control }: { control: any }) {
 
 
 function ProductFormFields() {
-    const { control, setValue, watch } = useFormContext<z.infer<typeof productSchema>>();
+    const { control, setValue, watch } = useForm<z.infer<typeof productSchema>>();
     const costPrice = watch('costPrice');
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
@@ -171,25 +170,20 @@ function ProductFormFields() {
         const currentPrice = Number(price) || 0;
         const discount = Number(discountPercentage) || 0;
 
-        const priceChanged = currentPrice !== price;
-        const costPriceChanged = cost !== costPrice;
-        const discountChanged = discount !== discountPercentage;
-
         if (cost > 0) {
-            if (discountChanged) {
+            // Price calculation is not fully reliable when multiple inputs can trigger it.
+            // A more robust solution might use a dedicated "calculate" button or more complex state management.
+            // This is a simplified approach for demonstration.
+            if (discount > 0) {
                  const newPrice = cost * (1 - discount / 100);
                  if (Math.abs(newPrice - currentPrice) > 0.01) {
                     setValue('price', Number(newPrice.toFixed(2)));
                  }
             } 
-            else if (priceChanged) {
-                if (currentPrice < cost) {
-                    const newDiscount = ((cost - currentPrice) / cost) * 100;
-                    if (Math.abs(newDiscount - discount) > 0.01) {
-                        setValue('discountPercentage', Number(newDiscount.toFixed(2)));
-                    }
-                } else {
-                     setValue('discountPercentage', 0);
+            else if (currentPrice < cost) {
+                const newDiscount = ((cost - currentPrice) / cost) * 100;
+                if (Math.abs(newDiscount - discount) > 0.01) {
+                    setValue('discountPercentage', Number(newDiscount.toFixed(2)));
                 }
             }
         }
@@ -391,7 +385,7 @@ export default function AdminProductsPage() {
         return { kits, components };
     }, [products]);
      
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         setDataLoading(true);
         try {
             const productsQuery = query(collection(db, "products"), orderBy("name"));
@@ -407,7 +401,7 @@ export default function AdminProductsPage() {
         } finally {
             setDataLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         if (!adminLoading && !admin) {
@@ -415,7 +409,7 @@ export default function AdminProductsPage() {
         } else if (admin) {
             fetchProducts();
         }
-    }, [admin, adminLoading, router]);
+    }, [admin, adminLoading, router, fetchProducts]);
 
     const handleDialogOpen = (product: ProductWithId | null = null) => {
         setSelectedProduct(product);
@@ -423,8 +417,8 @@ export default function AdminProductsPage() {
             form.reset({
                 ...product,
                 costPrice: product.costPrice || undefined,
-                tags: product.tags?.join(', ') || '',
-                kitContents: product.kitContents?.join('\n') || '',
+                tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
+                kitContents: Array.isArray(product.kitContents) ? product.kitContents.join('\n') : '',
                 imageUrls: product.imageUrls || [],
             });
         } else {
@@ -455,6 +449,7 @@ export default function AdminProductsPage() {
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
+            // Omit discountPercentage as it's a helper for UI calculation, not stored in DB
             const { discountPercentage, ...productDataToSave } = values;
             
             const productData = { 
@@ -470,7 +465,7 @@ export default function AdminProductsPage() {
             } else {
                 await addDoc(collection(db, "products"), {
                     ...productData,
-                    id: `prod-${Date.now()}`,
+                    id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                 });
                 toast({ title: "Product Added", description: `${values.name} has been added.` });
             }
@@ -596,12 +591,12 @@ export default function AdminProductsPage() {
                                 {selectedProduct ? 'Update the details of your product.' : 'Fill in the details for the new product.'}
                             </DialogDescription>
                         </DialogHeader>
-                        <Form {...form}>
+                        <FormProvider {...form}>
                             <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                                <ProductFormFields />
-                                <ImageManager control={form.control} />
+                                <ImageManager />
                             </form>
-                        </Form>
+                        </FormProvider>
                         <DialogFooter>
                              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                             <Button type="submit" form="product-form" disabled={form.formState.isSubmitting}>
