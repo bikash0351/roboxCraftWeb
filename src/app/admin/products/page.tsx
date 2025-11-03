@@ -49,6 +49,7 @@ type ProductWithId = Product & { firestoreId: string };
 // --- Image Management Component ---
 function ImageManager() {
     const { getValues, setValue } = useFormContext<z.infer<typeof productSchema>>();
+    const { admin } = useAdminAuth();
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>(getValues('imageUrls') || []);
     const [isUploading, setIsUploading] = useState(false);
@@ -67,6 +68,10 @@ function ImageManager() {
     };
     
     const handleUpload = async () => {
+        if (!admin) {
+             toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to upload images." });
+             return;
+        }
         if (imageFiles.length === 0) return;
         setIsUploading(true);
 
@@ -85,7 +90,7 @@ function ImageManager() {
             toast({ title: "Images uploaded successfully" });
         } catch (error) {
             console.error("Error uploading images: ", error);
-            toast({ variant: "destructive", title: "Upload Failed" });
+            toast({ variant: "destructive", title: "Upload Failed", description: "Please check your storage rules and network." });
         } finally {
             setIsUploading(false);
         }
