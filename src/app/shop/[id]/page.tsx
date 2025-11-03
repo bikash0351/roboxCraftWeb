@@ -81,11 +81,13 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             const similarQuery = query(
               collection(db, "products"),
               where("tags", "array-contains-any", productData.tags),
-              where("id", "!=", productData.id),
-              limit(4)
+              limit(5) // Fetch 5 to have a buffer in case the current product is included
             );
             const similarSnap = await getDocs(similarQuery);
-            const similarData = similarSnap.docs.map(doc => ({ ...doc.data(), id: doc.data().id || doc.id } as Product));
+            const similarData = similarSnap.docs
+                .map(doc => ({ ...doc.data(), id: doc.data().id || doc.id } as Product))
+                .filter(p => p.id !== productData.id) // Filter out the current product in the client
+                .slice(0, 4); // Ensure we only show 4
             setSimilarProducts(similarData);
           }
 
