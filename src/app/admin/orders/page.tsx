@@ -27,6 +27,8 @@ interface Order {
     city: string;
     postalCode: string;
     country: string;
+    discount?: number;
+    coupon?: string;
 }
 
 export default function AdminOrdersPage() {
@@ -103,6 +105,7 @@ export default function AdminOrdersPage() {
                                 <TableHead>Customer</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Total</TableHead>
+                                <TableHead>Coupon</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -115,6 +118,7 @@ export default function AdminOrdersPage() {
                                         <TableCell>{order.fullName}</TableCell>
                                         <TableCell>{new Date(order.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
                                         <TableCell>₹{order.total.toFixed(2)}</TableCell>
+                                        <TableCell>{order.coupon || 'N/A'}</TableCell>
                                         <TableCell>
                                             <Badge variant={order.status === 'pending' ? 'secondary' : 'default'} className="capitalize">{order.status}</Badge>
                                         </TableCell>
@@ -152,7 +156,7 @@ export default function AdminOrdersPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center h-24">No orders found.</TableCell>
+                                    <TableCell colSpan={7} className="text-center h-24">No orders found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

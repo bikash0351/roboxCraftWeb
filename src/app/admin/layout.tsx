@@ -13,6 +13,7 @@ import {
   Settings,
   ShoppingCart,
   Users,
+  TicketPercent,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -70,8 +71,9 @@ export default function AdminLayout({
   const navLinks = [
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-    { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
+    { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/account", label: "Account", icon: Settings },
   ];
 

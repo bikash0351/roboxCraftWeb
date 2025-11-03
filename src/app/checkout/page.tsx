@@ -10,28 +10,36 @@ import { PlaceHolderImages as placeholderImages } from "@/lib/placeholder-images
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCart } from "@/hooks/use-cart";
+import { useCart, type CartItem } from "@/hooks/use-cart";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
+  mobileNumber: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number"),
   email: z.string().email("Invalid email address"),
   address: z.string().min(5, "Address is required"),
   city: z.string().min(2, "City is required"),
-  postalCode: z.string().min(5, "Postal code is required"),
+  postalCode: z.string().regex(/^\d{6}$/, "Invalid Pincode"),
   country: z.string().min(2, "Country is required"),
   paymentMethod: z.enum(["cod"], {
     required_error: "You need to select a payment method.",
   }),
 });
+
+interface Coupon {
+  code: string;
+  discountPercentage: number;
+  type: 'Universal' | 'Kits' | 'Components';
+}
 
 function CheckoutForm() {
     const { user, loading: authLoading } = useAuth();
@@ -41,13 +49,34 @@ function CheckoutForm() {
     const searchParams = useSearchParams();
     const redirect = searchParams.get('redirect');
 
+    const [couponCode, setCouponCode] = useState("");
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    const [couponLoading, setCouponLoading] = useState(false);
+
     const shippingCost = 50.00;
-    const total = totalPrice + shippingCost;
+
+    const discountAmount = useMemo(() => {
+        if (!appliedCoupon) return 0;
+        
+        let applicableTotal = 0;
+        if (appliedCoupon.type === 'Universal') {
+            applicableTotal = totalPrice;
+        } else {
+            applicableTotal = items
+                .filter(item => item.category === appliedCoupon.type)
+                .reduce((sum, item) => sum + item.price * item.quantity, 0);
+        }
+
+        return (applicableTotal * appliedCoupon.discountPercentage) / 100;
+    }, [appliedCoupon, items, totalPrice]);
+
+    const total = totalPrice - discountAmount + shippingCost;
 
     const form = useForm<z.infer<typeof checkoutSchema>>({
         resolver: zodResolver(checkoutSchema),
         defaultValues: {
             fullName: "",
+            mobileNumber: "",
             email: "",
             address: "",
             city: "",
@@ -68,7 +97,8 @@ function CheckoutForm() {
             form.reset({
                 fullName: user.displayName || "",
                 email: user.email || "",
-                address: "", // Keep address fields empty for user to fill
+                mobileNumber: "",
+                address: "", 
                 city: "",
                 postalCode: "",
                 country: "India",
@@ -79,12 +109,37 @@ function CheckoutForm() {
 
 
     useEffect(() => {
-        // Only redirect if cart is empty AND we weren't just sent here from login
         if (!cartLoading && items.length === 0 && !redirect) {
             router.replace("/shop");
         }
     }, [items, cartLoading, router, redirect]);
 
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setCouponLoading(true);
+        try {
+            const q = query(collection(db, "coupons"), where("code", "==", couponCode.toUpperCase()));
+            const querySnapshot = await getDocs(q);
+            if (querySnapshot.empty) {
+                toast({ variant: "destructive", title: "Invalid Coupon Code" });
+                setAppliedCoupon(null);
+            } else {
+                const couponData = querySnapshot.docs[0].data() as Coupon;
+                setAppliedCoupon(couponData);
+                toast({ title: "Coupon Applied!", description: `You get a ${couponData.discountPercentage}% discount.` });
+            }
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error applying coupon" });
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode("");
+        toast({ title: "Coupon removed" });
+    }
 
     async function onSubmit(data: z.infer<typeof checkoutSchema>) {
         if (!user) {
@@ -104,6 +159,8 @@ function CheckoutForm() {
                 items,
                 subtotal: totalPrice,
                 shipping: shippingCost,
+                discount: discountAmount,
+                coupon: appliedCoupon?.code || null,
                 total,
                 status: 'pending',
                 createdAt: serverTimestamp(),
@@ -142,7 +199,7 @@ function CheckoutForm() {
 
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-12">
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 space-y-8">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="font-headline">Shipping Information</CardTitle>
@@ -152,10 +209,23 @@ function CheckoutForm() {
                                     control={form.control}
                                     name="fullName"
                                     render={({ field }) => (
-                                        <FormItem className="sm:col-span-2">
+                                        <FormItem>
                                             <FormLabel>Full Name</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="Your Name" {...field} value={field.value ?? ''} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="mobileNumber"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Mobile Number</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="10-digit mobile number" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -205,9 +275,9 @@ function CheckoutForm() {
                                     name="postalCode"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Postal Code</FormLabel>
+                                            <FormLabel>Pincode</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Your Postal Code" {...field} value={field.value ?? ''} />
+                                                <Input placeholder="Your Pincode" {...field} value={field.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -229,7 +299,7 @@ function CheckoutForm() {
                             </CardContent>
                         </Card>
                         
-                        <Card className="mt-8">
+                        <Card>
                             <CardHeader>
                                 <CardTitle className="font-headline">Payment Method</CardTitle>
                             </CardHeader>
@@ -298,9 +368,33 @@ function CheckoutForm() {
                                 </div>
                                 <Separator />
                                 <div className="space-y-2">
+                                     {!appliedCoupon ? (
+                                        <div className="flex items-end gap-2">
+                                            <div className="flex-grow">
+                                                <Label htmlFor="coupon">Coupon Code</Label>
+                                                <Input id="coupon" placeholder="Enter coupon" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={couponLoading} />
+                                            </div>
+                                            <Button type="button" onClick={handleApplyCoupon} disabled={!couponCode || couponLoading}>
+                                                {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                                            </Button>
+                                        </div>
+                                     ) : (
+                                        <div className="flex justify-between items-center text-sm">
+                                            <p className="text-muted-foreground">Coupon Applied:</p>
+                                            <Badge>
+                                                {appliedCoupon.code}
+                                                <button onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
+                                            </Badge>
+                                        </div>
+                                     )}
+                                    <Separator />
                                     <div className="flex justify-between">
                                         <span>Subtotal</span>
                                         <span>₹{totalPrice.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Discount</span>
+                                        <span>- ₹{discountAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Shipping</span>
