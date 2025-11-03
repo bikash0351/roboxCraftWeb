@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck } from "lucide-react";
 import {
@@ -56,8 +55,9 @@ function ShareButtons() {
 }
 
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function ProductDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
