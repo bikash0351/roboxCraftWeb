@@ -17,11 +17,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, Suspense, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where, doc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { type Timestamp } from "firebase/firestore";
 
 
 const checkoutSchema = z.object({
@@ -38,10 +39,13 @@ const checkoutSchema = z.object({
 });
 
 interface Coupon {
+  firestoreId: string;
   code: string;
   discountType: 'percentage' | 'amount';
   discountValue: number;
   categoryType: 'Universal' | 'Kits' | 'Components';
+  status: 'active' | 'paused';
+  expiryDate?: Timestamp;
 }
 
 function CheckoutForm() {
@@ -132,14 +136,35 @@ function CheckoutForm() {
         try {
             const q = query(collection(db, "coupons"), where("code", "==", couponCode.toUpperCase()));
             const querySnapshot = await getDocs(q);
+
             if (querySnapshot.empty) {
                 toast({ variant: "destructive", title: "Invalid Coupon Code" });
                 setAppliedCoupon(null);
-            } else {
-                const couponData = querySnapshot.docs[0].data() as Coupon;
-                setAppliedCoupon(couponData);
-                toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
+                return;
+            } 
+            
+            const couponDoc = querySnapshot.docs[0];
+            const couponData = { firestoreId: couponDoc.id, ...couponDoc.data() } as Coupon;
+
+            // Check if coupon is active and not expired
+            const now = new Date();
+            const expiryDate = couponData.expiryDate?.toDate();
+
+            if (couponData.status !== 'active') {
+                toast({ variant: "destructive", title: "Coupon is not active" });
+                setAppliedCoupon(null);
+                return;
             }
+
+            if (expiryDate && expiryDate < now) {
+                toast({ variant: "destructive", title: "This coupon has expired" });
+                setAppliedCoupon(null);
+                return;
+            }
+
+            setAppliedCoupon(couponData);
+            toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
+
         } catch (error) {
             toast({ variant: "destructive", title: "Error applying coupon" });
         } finally {
@@ -179,6 +204,14 @@ function CheckoutForm() {
             };
 
             await addDoc(collection(db, "orders"), orderData);
+
+            // Increment coupon usage count if a coupon was applied
+            if (appliedCoupon) {
+                const couponRef = doc(db, "coupons", appliedCoupon.firestoreId);
+                await updateDoc(couponRef, {
+                    usageCount: increment(1)
+                });
+            }
 
             clearCart();
             toast({
@@ -443,3 +476,5 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
+
+    
