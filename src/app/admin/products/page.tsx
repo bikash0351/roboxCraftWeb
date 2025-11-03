@@ -5,7 +5,7 @@
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -502,3 +502,5 @@ export default function AdminProductsPage() {
         </div>
     );
 }
+
+    
