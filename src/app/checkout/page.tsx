@@ -21,6 +21,8 @@ import { addDoc, collection, serverTimestamp, getDocs, query, where } from "fire
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -37,8 +39,9 @@ const checkoutSchema = z.object({
 
 interface Coupon {
   code: string;
-  discountPercentage: number;
-  type: 'Universal' | 'Kits' | 'Components';
+  discountType: 'percentage' | 'amount';
+  discountValue: number;
+  categoryType: 'Universal' | 'Kits' | 'Components';
 }
 
 function CheckoutForm() {
@@ -59,15 +62,24 @@ function CheckoutForm() {
         if (!appliedCoupon) return 0;
         
         let applicableTotal = 0;
-        if (appliedCoupon.type === 'Universal') {
+        if (appliedCoupon.categoryType === 'Universal') {
             applicableTotal = totalPrice;
         } else {
             applicableTotal = items
-                .filter(item => item.category === appliedCoupon.type)
+                .filter(item => item.category === appliedCoupon.categoryType)
                 .reduce((sum, item) => sum + item.price * item.quantity, 0);
         }
 
-        return (applicableTotal * appliedCoupon.discountPercentage) / 100;
+        let discount = 0;
+        if (appliedCoupon.discountType === 'percentage') {
+            discount = (applicableTotal * appliedCoupon.discountValue) / 100;
+        } else { // 'amount'
+            discount = appliedCoupon.discountValue;
+        }
+        
+        // Ensure discount doesn't exceed the applicable total
+        return Math.min(discount, applicableTotal);
+
     }, [appliedCoupon, items, totalPrice]);
 
     const total = totalPrice - discountAmount + shippingCost;
@@ -126,7 +138,7 @@ function CheckoutForm() {
             } else {
                 const couponData = querySnapshot.docs[0].data() as Coupon;
                 setAppliedCoupon(couponData);
-                toast({ title: "Coupon Applied!", description: `You get a ${couponData.discountPercentage}% discount.` });
+                toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
             }
         } catch (error) {
             toast({ variant: "destructive", title: "Error applying coupon" });
@@ -383,7 +395,7 @@ function CheckoutForm() {
                                             <p className="text-muted-foreground">Coupon Applied:</p>
                                             <Badge>
                                                 {appliedCoupon.code}
-                                                <button onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
+                                                <button type="button" onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
                                             </Badge>
                                         </div>
                                      )}

@@ -23,8 +23,17 @@ import { Badge } from "@/components/ui/badge";
 
 const couponSchema = z.object({
   code: z.string().min(3, "Code must be at least 3 characters").max(20).transform(val => val.toUpperCase()),
-  discountPercentage: z.coerce.number().min(1, "Discount must be at least 1%").max(90, "Discount cannot exceed 90%"),
-  type: z.enum(["Universal", "Kits", "Components"]),
+  discountType: z.enum(["percentage", "amount"]),
+  discountValue: z.coerce.number().min(1, "Discount value must be at least 1"),
+  categoryType: z.enum(["Universal", "Kits", "Components"]),
+}).refine((data) => {
+    if (data.discountType === 'percentage' && data.discountValue > 90) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Percentage discount cannot exceed 90%",
+    path: ["discountValue"],
 });
 
 export interface Coupon extends z.infer<typeof couponSchema> {
@@ -45,10 +54,13 @@ export default function AdminCouponsPage() {
         resolver: zodResolver(couponSchema),
         defaultValues: {
             code: "",
-            discountPercentage: 10,
-            type: "Universal",
+            discountType: "percentage",
+            discountValue: 10,
+            categoryType: "Universal",
         },
     });
+
+    const discountType = form.watch("discountType");
      
     const fetchCoupons = async () => {
         setDataLoading(true);
@@ -153,25 +165,48 @@ export default function AdminCouponsPage() {
                                         </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="discountPercentage"
-                                    render={({ field }) => (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="discountType"
+                                        render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Discount Percentage (%)</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 15" {...field} />
-                                            </FormControl>
+                                            <FormLabel>Discount Type</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                                    <SelectItem value="amount">Fixed Amount (₹)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
-                                />
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="discountValue"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Value ({discountType === 'percentage' ? '%' : '₹'})
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g., 15" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                                 <FormField
                                     control={form.control}
-                                    name="type"
+                                    name="categoryType"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Coupon Type</FormLabel>
+                                        <FormLabel>Category Type</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
                                                 <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
@@ -209,7 +244,7 @@ export default function AdminCouponsPage() {
                             <TableRow>
                                 <TableHead>Code</TableHead>
                                 <TableHead>Discount</TableHead>
-                                <TableHead>Type</TableHead>
+                                <TableHead>Category</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -217,9 +252,11 @@ export default function AdminCouponsPage() {
                             {coupons.length > 0 ? coupons.map(coupon => (
                                 <TableRow key={coupon.firestoreId}>
                                     <TableCell className="font-medium">{coupon.code}</TableCell>
-                                    <TableCell>{coupon.discountPercentage}%</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">{coupon.type}</Badge>
+                                        {coupon.discountValue}{coupon.discountType === 'percentage' ? '%' : '₹'}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline">{coupon.categoryType}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => handleDeleteAlertOpen(coupon)}>
