@@ -5,7 +5,7 @@
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ type ProductWithId = Product & { firestoreId: string };
 
 // --- Image Management Component ---
 function ImageManager() {
-    const { getValues, setValue, control } = useForm<z.infer<typeof productSchema>>();
+    const { getValues, setValue } = useFormContext<z.infer<typeof productSchema>>();
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>(getValues('imageUrls') || []);
     const [isUploading, setIsUploading] = useState(false);
@@ -59,7 +59,10 @@ function ImageManager() {
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setImageFiles(Array.from(event.target.files));
+            const newFiles = Array.from(event.target.files);
+            setImageFiles(prev => [...prev, ...newFiles]);
+            const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+            setImagePreviews(prev => [...prev, ...newPreviews]);
         }
     };
     
@@ -76,7 +79,7 @@ function ImageManager() {
             const urls = await Promise.all(uploadPromises);
             const currentUrls = getValues('imageUrls') || [];
             const newUrls = [...currentUrls, ...urls];
-            setValue('imageUrls', newUrls);
+            setValue('imageUrls', newUrls, { shouldDirty: true });
             setImagePreviews(newUrls);
             setImageFiles([]); // Clear selected files
             toast({ title: "Images uploaded successfully" });
@@ -91,7 +94,7 @@ function ImageManager() {
     const removeImage = (index: number) => {
         const currentUrls = getValues('imageUrls') || [];
         const newUrls = currentUrls.filter((_, i) => i !== index);
-        setValue('imageUrls', newUrls);
+        setValue('imageUrls', newUrls, { shouldDirty: true });
         setImagePreviews(newUrls);
     };
 
@@ -109,7 +112,7 @@ function ImageManager() {
         
         setDraggedIndex(index);
         setImagePreviews(currentUrls);
-        setValue('imageUrls', currentUrls);
+        setValue('imageUrls', currentUrls, { shouldDirty: true });
     };
 
     const onDragEnd = () => {
@@ -159,7 +162,7 @@ function ImageManager() {
 
 
 function ProductFormFields() {
-    const { control, setValue, watch } = useForm<z.infer<typeof productSchema>>();
+    const { control, setValue, watch } = useFormContext<z.infer<typeof productSchema>>();
     const costPrice = watch('costPrice');
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
@@ -417,6 +420,7 @@ export default function AdminProductsPage() {
             form.reset({
                 ...product,
                 costPrice: product.costPrice || undefined,
+                discountPercentage: product.discountPercentage || undefined,
                 tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
                 kitContents: Array.isArray(product.kitContents) ? product.kitContents.join('\n') : '',
                 imageUrls: product.imageUrls || [],
@@ -449,8 +453,7 @@ export default function AdminProductsPage() {
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
-            // Omit discountPercentage as it's a helper for UI calculation, not stored in DB
-            const { discountPercentage, ...productDataToSave } = values;
+            const { ...productDataToSave } = values;
             
             const productData = { 
                 ...productDataToSave, 
@@ -638,3 +641,6 @@ export default function AdminProductsPage() {
     );
 }
 
+
+
+    
