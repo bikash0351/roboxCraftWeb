@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useState, use } from "react";
-import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle } from "lucide-react";
+import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -254,6 +254,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         <Tabs defaultValue="description" className="w-full">
             <TabsList>
                 <TabsTrigger value="description">Description</TabsTrigger>
+                {product.category === 'Kits' && product.kitContents && product.kitContents.length > 0 && (
+                    <TabsTrigger value="whats-included">What's Included</TabsTrigger>
+                )}
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
             <TabsContent value="description" className="py-6">
@@ -261,6 +264,19 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     {product.description ? <p>{product.description}</p> : <p>No full description available for this product.</p>}
                 </div>
             </TabsContent>
+            {product.category === 'Kits' && product.kitContents && product.kitContents.length > 0 && (
+                 <TabsContent value="whats-included" className="py-6">
+                    <h3 className="text-xl font-bold font-headline mb-4">In The Box</h3>
+                    <ul className="space-y-3">
+                        {product.kitContents.map((item, index) => (
+                             <li key={index} className="flex items-center gap-3">
+                                <PackageCheck className="h-5 w-5 text-primary" />
+                                <span className="text-muted-foreground">{item}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </TabsContent>
+            )}
             <TabsContent value="reviews" className="py-6">
                 <h3 className="text-xl font-bold font-headline mb-4">Customer Reviews</h3>
                 <div className="space-y-6">

@@ -4,7 +4,7 @@
 
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +27,8 @@ import { db, storage } from "@/lib/firebase";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -40,6 +42,7 @@ const productSchema = z.object({
   shortDescription: z.string().optional(),
   description: z.string().optional(),
   tags: z.string().optional(),
+  kitContents: z.string().optional(),
 });
 
 type ProductWithId = Product & { firestoreId: string };
@@ -49,6 +52,7 @@ function ProductFormFields() {
     const costPrice = watch('costPrice');
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
+    const category = watch('category');
 
     useEffect(() => {
         const cost = Number(costPrice) || 0;
@@ -143,6 +147,26 @@ function ProductFormFields() {
                 </FormItem>
                 )}
             />
+
+            {category === 'Kits' && (
+                <FormField
+                    control={control}
+                    name="kitContents"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>What's Included (for Kits)</FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="List each component on a new line. e.g.,&#10;1x Arduino Uno R3&#10;1x USB Cable&#10;20x Jumper Wires" {...field} rows={6} />
+                            </FormControl>
+                             <FormDescription>
+                                Each item on a new line will be shown as a list on the product page.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                     control={control}
@@ -242,8 +266,22 @@ export default function AdminProductsPage() {
             shortDescription: "",
             description: "",
             tags: "",
+            kitContents: "",
         },
     });
+
+     const { kits, components } = useMemo(() => {
+        const kits: ProductWithId[] = [];
+        const components: ProductWithId[] = [];
+        products.forEach(product => {
+            if (product.category === 'Kits') {
+                kits.push(product);
+            } else if (product.category === 'Components') {
+                components.push(product);
+            }
+        });
+        return { kits, components };
+    }, [products]);
      
     const fetchProducts = async () => {
         setDataLoading(true);
@@ -279,6 +317,7 @@ export default function AdminProductsPage() {
                 ...product,
                 costPrice: product.costPrice || undefined,
                 tags: product.tags?.join(', ') || '',
+                kitContents: product.kitContents?.join('\n') || '',
             });
         } else {
             form.reset({
@@ -292,6 +331,7 @@ export default function AdminProductsPage() {
                 shortDescription: "",
                 description: "",
                 tags: "",
+                kitContents: "",
             });
         }
         setDialogOpen(true);
@@ -314,14 +354,15 @@ export default function AdminProductsPage() {
             }
 
             const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+            const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
-            // Exclude discountPercentage from the data saved to Firestore
             const { discountPercentage, ...productDataToSave } = values;
             
             const productData = { 
                 ...productDataToSave, 
                 imageUrl,
                 tags: tagsArray,
+                kitContents: values.category === 'Kits' ? kitContentsArray : [],
              };
 
             if (selectedProduct) {
@@ -368,6 +409,80 @@ export default function AdminProductsPage() {
             </div>
         );
     }
+
+    const ProductTable = ({ products, title }: { products: ProductWithId[], title: string }) => (
+        <Card>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>Manage your {title.toLowerCase()}. View, edit, or delete them.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Stock</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {products.length > 0 ? products.map(product => {
+                            const productImage = PlaceHolderImages.find(p => p.id === (product.imageIds && product.imageIds[0] || 'ai-product'));
+                            const hasDiscount = product.costPrice && product.costPrice > product.price;
+
+                            return (
+                            <TableRow key={product.firestoreId}>
+                                <TableCell className="hidden sm:table-cell">
+                                    <Image
+                                        alt={product.name}
+                                        className="aspect-square rounded-md object-cover"
+                                        height="64"
+                                        src={product.imageUrl || productImage?.imageUrl || "https://placehold.co/64x64"}
+                                        width="64"
+                                    />
+                                </TableCell>
+                                <TableCell className="font-medium">{product.name}</TableCell>
+                                
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span>₹{product.price.toFixed(2)}</span>
+                                        {hasDiscount && <span className="text-xs text-muted-foreground line-through">₹{product.costPrice?.toFixed(2)}</span>}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{product.stock}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <span className="sr-only">Open menu</span>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => handleDialogOpen(product)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteAlertOpen(product)}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        )}) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No products found. Add your first product!
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
     
     return (
         <div className="flex flex-col gap-4">
@@ -410,80 +525,18 @@ export default function AdminProductsPage() {
                     </DialogContent>
                 </Dialog>
             </div>
-             <Card>
-                <CardHeader>
-                    <CardTitle>All Products</CardTitle>
-                    <CardDescription>Manage your products here. View, edit, or delete them.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Stock</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {products.length > 0 ? products.map(product => {
-                                const productImage = PlaceHolderImages.find(p => p.id === (product.imageIds && product.imageIds[0] || 'ai-product'));
-                                const hasDiscount = product.costPrice && product.costPrice > product.price;
-
-                                return (
-                                <TableRow key={product.firestoreId}>
-                                    <TableCell className="hidden sm:table-cell">
-                                        <Image
-                                            alt={product.name}
-                                            className="aspect-square rounded-md object-cover"
-                                            height="64"
-                                            src={product.imageUrl || productImage?.imageUrl || "https://placehold.co/64x64"}
-                                            width="64"
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{product.name}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{product.category}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span>₹{product.price.toFixed(2)}</span>
-                                            {hasDiscount && <span className="text-xs text-muted-foreground line-through">₹{product.costPrice?.toFixed(2)}</span>}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{product.stock}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Open menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleDialogOpen(product)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteAlertOpen(product)}>
-                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            )}) : (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
-                                        No products found. Add your first product!
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+             <Tabs defaultValue="kits" className="w-full">
+                <TabsList>
+                    <TabsTrigger value="kits">Kits ({kits.length})</TabsTrigger>
+                    <TabsTrigger value="components">Components ({components.length})</TabsTrigger>
+                </TabsList>
+                <TabsContent value="kits">
+                    <ProductTable products={kits} title="Kits" />
+                </TabsContent>
+                <TabsContent value="components">
+                    <ProductTable products={components} title="Components" />
+                </TabsContent>
+            </Tabs>
             <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -495,12 +548,10 @@ export default function AdminProductsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive">Delete</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
     );
 }
-
-    

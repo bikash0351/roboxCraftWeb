@@ -13,6 +13,7 @@ export interface Product {
   description?: string;
   shortDescription?: string;
   tags?: string[];
+  kitContents?: string[];
 }
 
 export interface ProductRecommendation {
@@ -70,5 +71,3 @@ export const reels: Reel[] = [
 ];
 
 export const products: Product[] = [];
-
-    
