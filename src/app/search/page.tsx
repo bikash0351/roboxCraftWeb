@@ -6,10 +6,12 @@ import { useEffect, useState, Suspense } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { type Product } from "@/lib/data";
-import { Loader2, SearchX } from "lucide-react";
+import { Filter, Loader2, SearchX } from "lucide-react";
 import { ProductFilters } from "@/components/product-filters";
 import { useProductFilters } from "@/hooks/use-product-filters";
 import { ProductGrid } from "@/components/product-grid";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 function SearchResults() {
   const searchParams = useSearchParams();
@@ -73,14 +75,35 @@ function SearchResults() {
     <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {searchedProducts.length > 0 ? (
         <>
-          <h1 className="text-3xl font-bold font-headline">
-            Search results for &quot;{q}&quot;
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Found {filteredProducts.length} matching products.
-          </p>
+           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 className="text-3xl font-bold font-headline">
+                    Search results for &quot;{q}&quot;
+                </h1>
+                <p className="mt-2 text-muted-foreground">
+                    Found {filteredProducts.length} matching products.
+                </p>
+            </div>
+             <div className="md:hidden mt-4 sm:mt-0">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filters</Button>
+                    </SheetTrigger>
+                    <SheetContent>
+                        <ProductFilters 
+                            filters={filters}
+                            setFilters={setFilters}
+                            sort={sort}
+                            setSort={setSort}
+                            maxPrice={maxPrice}
+                            highestPrice={highestPrice}
+                        />
+                    </SheetContent>
+                </Sheet>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-8">
-            <aside className="md:col-span-1">
+            <aside className="hidden md:block md:col-span-1">
               <ProductFilters 
                 filters={filters}
                 setFilters={setFilters}
