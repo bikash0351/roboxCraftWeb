@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Image from "next/image";
@@ -77,18 +76,22 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
         </CardHeader>
-        <CardContent className="flex-1 p-4 pb-2">
-          <h3 className="line-clamp-2 font-semibold h-12">{product.name}</h3>
-          <div className="mt-2 flex items-baseline gap-2">
-            {hasDiscount && (
-              <span className="text-sm text-muted-foreground line-through">
-                ₹{product.costPrice?.toFixed(2)}
-              </span>
-            )}
-            <span className="text-lg font-bold text-foreground">
-              ₹{product.price.toFixed(2)}
-            </span>
-          </div>
+        <CardContent className="flex-1 p-4 pb-2 flex flex-col justify-between">
+            <div>
+                <h3 className="line-clamp-2 font-semibold text-sm md:text-base">{product.name}</h3>
+            </div>
+            <div className="mt-2">
+                <div className="flex items-baseline gap-2">
+                    <span className="text-base md:text-lg font-bold text-foreground">
+                    ₹{product.price.toFixed(2)}
+                    </span>
+                    {hasDiscount && (
+                    <span className="text-xs md:text-sm text-muted-foreground line-through">
+                        ₹{product.costPrice?.toFixed(2)}
+                    </span>
+                    )}
+                </div>
+            </div>
         </CardContent>
       </Link>
       <CardFooter className="p-4 pt-2">
