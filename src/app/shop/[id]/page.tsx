@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck, CalendarClock } from "lucide-react";
+import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck, CalendarClock, Bolt } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
 import { AddToCartButton } from "./add-to-cart-button";
+import { BuyNowButton } from "./buy-now-button";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
@@ -203,6 +204,7 @@ export default function ProductDetailPage() {
 
           <div className="flex flex-col sm:flex-row gap-4">
             <AddToCartButton product={product} />
+            <BuyNowButton product={product} />
             {product.category === 'Kits' && (
               <Button asChild size="lg" className="w-full sm:w-auto" variant="secondary">
                   <Link href={`/rent/${product.id}`}>
