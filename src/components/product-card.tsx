@@ -78,10 +78,10 @@ export function ProductCard({ product }: ProductCardProps) {
         </CardHeader>
         <CardContent className="flex-1 p-4 pb-2 flex flex-col justify-between">
             <div>
-                <h3 className="line-clamp-2 font-semibold text-sm md:text-base">{product.name}</h3>
+                <h3 className="line-clamp-2 font-semibold text-sm md:text-base h-12">{product.name}</h3>
             </div>
             <div className="mt-2">
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-col">
                     <span className="text-base md:text-lg font-bold text-foreground">
                     ₹{product.price.toFixed(2)}
                     </span>
