@@ -42,9 +42,18 @@ export default function AdminCustomersPage() {
          if (admin) {
             setDataLoading(true);
             try {
+                // First, get all admin UIDs
+                const adminsQuery = query(collection(db, "admins"));
+                const adminsSnapshot = await getDocs(adminsQuery);
+                const adminUids = new Set(adminsSnapshot.docs.map(doc => doc.data().uid));
+
+                // Then, get all users and filter out the admins
                 const customersQuery = query(collection(db, "users"), orderBy("registrationTime", "desc"));
                 const querySnapshot = await getDocs(customersQuery);
-                const customersData = querySnapshot.docs.map(doc => doc.data() as Customer);
+                
+                const allUsersData = querySnapshot.docs.map(doc => doc.data() as Customer);
+                const customersData = allUsersData.filter(user => !adminUids.has(user.uid));
+
                 setCustomers(customersData);
             } catch (error) {
                 console.error("Error fetching customers:", error);
