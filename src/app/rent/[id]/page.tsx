@@ -1,7 +1,7 @@
 
 "use client";
 
-import { notFound, useRouter, useSearchParams } from "next/navigation";
+import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,6 +19,7 @@ import { addDoc, collection, serverTimestamp, getDocs, query, where, doc, getDoc
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import type { Product } from "@/lib/data";
+import { Label } from "@/components/ui/label";
 
 const rentCheckoutSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -37,8 +38,9 @@ interface RentalPlan {
   feePercentage: number;
 }
 
-function RentCheckoutForm({ params }: { params: { id: string } }) {
-    const { id: productId } = params;
+function RentCheckoutForm() {
+    const params = useParams();
+    const productId = params.id as string;
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
@@ -298,14 +300,14 @@ function RentCheckoutForm({ params }: { params: { id: string } }) {
     );
 }
 
-export default function RentPage({ params }: { params: { id: string } }) {
+export default function RentPage() {
     return (
         <Suspense fallback={
             <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         }>
-            <RentCheckoutForm params={params} />
+            <RentCheckoutForm />
         </Suspense>
     )
 }
