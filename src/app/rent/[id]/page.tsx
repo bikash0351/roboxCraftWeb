@@ -1,7 +1,7 @@
 
 "use client";
 
-import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
+import { notFound, useRouter, useParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -128,7 +128,7 @@ function RentCheckoutForm() {
                 email: user.email || "",
             });
         }
-    }, [user, form.reset]);
+    }, [user, form]);
 
 
     async function onSubmit(data: z.infer<typeof rentCheckoutSchema>) {
@@ -202,17 +202,15 @@ function RentCheckoutForm() {
                                     render={({ field }) => (
                                         <FormItem>
                                              <FormControl>
-                                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                                     {rentalPlans.map(plan => (
-                                                         <FormItem key={plan.id} className="relative">
-                                                            <FormControl>
+                                                         <FormItem key={plan.id}>
+                                                            <Label htmlFor={plan.id} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 text-center hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
                                                                 <RadioGroupItem value={plan.id} id={plan.id} className="sr-only" />
-                                                            </FormControl>
-                                                            <Label htmlFor={plan.id} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                                                                <span className="text-2xl font-bold">{plan.duration}</span>
-                                                                <span className="font-normal mb-2">Days</span>
+                                                                <span className="text-xl font-bold">{plan.duration}</span>
+                                                                <span className="font-normal mb-2 text-sm">Days</span>
                                                                 <Separator/>
-                                                                <span className="mt-2 text-sm text-muted-foreground">Fee: {plan.feePercentage}%</span>
+                                                                <span className="mt-2 text-xs text-muted-foreground">Fee: {plan.feePercentage}%</span>
                                                             </Label>
                                                         </FormItem>
                                                     ))}
@@ -311,3 +309,5 @@ export default function RentPage() {
         </Suspense>
     )
 }
+
+    
