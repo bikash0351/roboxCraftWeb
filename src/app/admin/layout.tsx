@@ -15,6 +15,7 @@ import {
   Users,
   TicketPercent,
   Users2,
+  Tags,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -73,6 +74,7 @@ export default function AdminLayout({
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/tags", label: "Tags", icon: Tags },
     { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
     { href: "/admin/users", label: "Admin Users", icon: Users2 },

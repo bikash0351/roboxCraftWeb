@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -295,7 +296,7 @@ export default function ProductDetailPage() {
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             {similarProducts.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.firestoreId || p.id} product={p} />
             ))}
           </div>
         </div>

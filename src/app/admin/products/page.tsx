@@ -5,7 +5,7 @@
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useForm, FormProvider, useFormContext } from "react-hook-form";
+import { useForm, FormProvider, useFormContext, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,12 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 
+interface Tag {
+  id: string;
+  name: string;
+}
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -40,7 +45,7 @@ const productSchema = z.object({
   imageUrls: z.array(z.string()).default([]),
   shortDescription: z.string().optional(),
   description: z.string().optional(),
-  tags: z.string().optional(),
+  tags: z.array(z.string()).default([]),
   kitContents: z.string().optional(),
 });
 
@@ -172,6 +177,17 @@ function ProductFormFields() {
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
     const category = watch('category');
+    const [allTags, setAllTags] = useState<Tag[]>([]);
+    
+    useEffect(() => {
+        const fetchTags = async () => {
+            const tagsQuery = query(collection(db, "productTags"), orderBy("name"));
+            const querySnapshot = await getDocs(tagsQuery);
+            setAllTags(querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
+        };
+        fetchTags();
+    }, []);
+
 
     useEffect(() => {
         const cost = Number(costPrice) || 0;
@@ -179,9 +195,6 @@ function ProductFormFields() {
         const discount = Number(discountPercentage) || 0;
 
         if (cost > 0) {
-            // Price calculation is not fully reliable when multiple inputs can trigger it.
-            // A more robust solution might use a dedicated "calculate" button or more complex state management.
-            // This is a simplified approach for demonstration.
             if (discount > 0) {
                  const newPrice = cost * (1 - discount / 100);
                  if (Math.abs(newPrice - currentPrice) > 0.01) {
@@ -268,7 +281,7 @@ function ProductFormFields() {
                         <FormItem>
                             <FormLabel>What's Included (for Kits)</FormLabel>
                             <FormControl>
-                                <Textarea placeholder="List each component on a new line. e.g.,&#10;1x Arduino Uno R3&#10;1x USB Cable&#10;20x Jumper Wires" {...field} rows={6} />
+                                <Textarea placeholder="List each component on a new line. e.g.,&#10;1x Arduino Uno R3&#10;1x USB Cable&#10;20x Jumper Wires" {...field} value={field.value ?? ''}/>
                             </FormControl>
                              <FormDescription>
                                 Each item on a new line will be shown as a list on the product page.
@@ -336,17 +349,51 @@ function ProductFormFields() {
             <FormField
                 control={control}
                 name="tags"
-                render={({ field }) => (
-                    <FormItem>
+                render={() => (
+                <FormItem>
+                    <div>
                         <FormLabel>Tags</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g., arduino, beginner, robotics" {...field} />
-                        </FormControl>
-                            <FormDescription>
-                            Comma-separated tags for product discovery.
+                        <FormDescription>
+                            Select tags that apply to this product.
                         </FormDescription>
-                        <FormMessage />
-                    </FormItem>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
+                    {allTags.map((tag) => (
+                        <FormField
+                        key={tag.id}
+                        control={control}
+                        name="tags"
+                        render={({ field }) => {
+                            return (
+                            <FormItem
+                                key={tag.id}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                                <FormControl>
+                                <Checkbox
+                                    checked={field.value?.includes(tag.name)}
+                                    onCheckedChange={(checked) => {
+                                    return checked
+                                        ? field.onChange([...(field.value || []), tag.name])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                            (value) => value !== tag.name
+                                            )
+                                        )
+                                    }}
+                                />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                {tag.name}
+                                </FormLabel>
+                            </FormItem>
+                            )
+                        }}
+                        />
+                    ))}
+                    </div>
+                    <FormMessage />
+                </FormItem>
                 )}
             />
         </>
@@ -375,7 +422,7 @@ export default function AdminProductsPage() {
             imageUrls: [],
             shortDescription: "",
             description: "",
-            tags: "",
+            tags: [],
             kitContents: "",
         },
     });
@@ -426,7 +473,7 @@ export default function AdminProductsPage() {
                 ...product,
                 costPrice: product.costPrice || undefined,
                 discountPercentage: product.discountPercentage || undefined,
-                tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
+                tags: product.tags || [],
                 kitContents: Array.isArray(product.kitContents) ? product.kitContents.join('\n') : '',
                 imageUrls: product.imageUrls || [],
             });
@@ -441,7 +488,7 @@ export default function AdminProductsPage() {
                 imageUrls: [],
                 shortDescription: "",
                 description: "",
-                tags: "",
+                tags: [],
                 kitContents: "",
             });
         }
@@ -455,12 +502,10 @@ export default function AdminProductsPage() {
 
     const onSubmit = async (values: z.infer<typeof productSchema>) => {
         try {
-            const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             const kitContentsArray = values.kitContents ? values.kitContents.split('\n').map(item => item.trim()).filter(item => item) : [];
             
             const productData = { 
                 ...values, 
-                tags: tagsArray,
                 kitContents: values.category === 'Kits' ? kitContentsArray : [],
              };
 
