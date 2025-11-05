@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { type Product } from "@/lib/data";
-import { Loader2, PlusCircle, MoreHorizontal, Edit, Trash2, GripVertical } from "lucide-react";
+import { Loader2, PlusCircle, MoreHorizontal, Edit, Trash2, GripVertical, Check, ChevronsUpDown, X } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -27,7 +27,10 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+
 
 interface Tag {
   id: string;
@@ -172,7 +175,7 @@ function ImageManager() {
 
 
 function ProductFormFields() {
-    const { control, setValue, watch } = useFormContext<z.infer<typeof productSchema>>();
+    const { control, setValue, watch, getValues } = useFormContext<z.infer<typeof productSchema>>();
     const costPrice = watch('costPrice');
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
@@ -349,51 +352,75 @@ function ProductFormFields() {
             <FormField
                 control={control}
                 name="tags"
-                render={() => (
-                <FormItem>
-                    <div>
+                render={({ field }) => (
+                    <FormItem>
                         <FormLabel>Tags</FormLabel>
-                        <FormDescription>
-                            Select tags that apply to this product.
-                        </FormDescription>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
-                    {allTags.map((tag) => (
-                        <FormField
-                        key={tag.id}
-                        control={control}
-                        name="tags"
-                        render={({ field }) => {
-                            return (
-                            <FormItem
-                                key={tag.id}
-                                className="flex flex-row items-start space-x-3 space-y-0"
-                            >
+                        <Popover>
+                            <PopoverTrigger asChild>
                                 <FormControl>
-                                <Checkbox
-                                    checked={field.value?.includes(tag.name)}
-                                    onCheckedChange={(checked) => {
-                                    return checked
-                                        ? field.onChange([...(field.value || []), tag.name])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                            (value) => value !== tag.name
-                                            )
-                                        )
-                                    }}
-                                />
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn("w-full justify-between h-auto", !field.value?.length && "text-muted-foreground")}
+                                    >
+                                        <div className="flex gap-1 flex-wrap">
+                                            {field.value?.map((tag) => (
+                                                <Badge
+                                                    variant="secondary"
+                                                    key={tag}
+                                                    className="mr-1 mb-1"
+                                                    onClick={() => {
+                                                        const newValue = field.value?.filter((t) => t !== tag) || [];
+                                                        field.onChange(newValue);
+                                                    }}
+                                                >
+                                                    {tag}
+                                                    <X className="ml-1 h-3 w-3" />
+                                                </Badge>
+                                            ))}
+                                            {field.value?.length === 0 && "Select tags..."}
+                                        </div>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
                                 </FormControl>
-                                <FormLabel className="font-normal">
-                                {tag.name}
-                                </FormLabel>
-                            </FormItem>
-                            )
-                        }}
-                        />
-                    ))}
-                    </div>
-                    <FormMessage />
-                </FormItem>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search tags..." />
+                                    <CommandList>
+                                        <CommandEmpty>No tags found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {allTags.map((tag) => (
+                                                <CommandItem
+                                                    value={tag.name}
+                                                    key={tag.id}
+                                                    onSelect={() => {
+                                                        const currentValue = field.value || [];
+                                                        const isSelected = currentValue.includes(tag.name);
+                                                        if (isSelected) {
+                                                            field.onChange(currentValue.filter((t) => t !== tag.name));
+                                                        } else {
+                                                            field.onChange([...currentValue, tag.name]);
+                                                        }
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            field.value?.includes(tag.name) ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {tag.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <FormDescription>Select tags that apply to this product.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
                 )}
             />
         </>
@@ -690,5 +717,7 @@ export default function AdminProductsPage() {
 }
 
 
+
+    
 
     
