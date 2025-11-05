@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
 import { ContentFooter } from '@/components/content-footer';
 import { AuthProvider } from '@/components/auth-provider';
+import { AuthModal } from '@/components/auth-modal';
 
 export default function RootLayout({
   children,
@@ -49,6 +50,7 @@ export default function RootLayout({
               <SiteFooter />
             </div>
             <Toaster />
+            <AuthModal />
           </CartProvider>
         </AuthProvider>
       </body>
