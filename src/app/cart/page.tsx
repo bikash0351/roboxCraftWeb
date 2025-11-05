@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Image from "next/image";
@@ -12,10 +11,8 @@ import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function CartPage() {
-    const { items, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart();
-    const shippingCost = 50.00;
-    const total = totalPrice + shippingCost;
-
+    const { items, updateQuantity, removeFromCart, clearCart, totalPrice, taxAmount, shippingCost, total } = useCart();
+    
     if (items.length === 0) {
         return (
             <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center gap-6 text-center">
@@ -82,6 +79,10 @@ export default function CartPage() {
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>₹{totalPrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Tax (18%)</span>
+                                <span>₹{taxAmount.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Shipping</span>

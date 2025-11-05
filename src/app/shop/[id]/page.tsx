@@ -1,12 +1,11 @@
 
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck } from "lucide-react";
+import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck, CalendarClock } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -77,18 +76,17 @@ export default function ProductDetailPage() {
           const productData = { firestoreId: productDoc.id, ...productDoc.data() } as Product;
           setProduct(productData);
 
-          // Fetch similar products based on tags
           if (productData.tags && productData.tags.length > 0) {
             const similarQuery = query(
               collection(db, "products"),
               where("tags", "array-contains-any", productData.tags),
-              limit(5) // Fetch 5 to have a buffer in case the current product is included
+              limit(5) 
             );
             const similarSnap = await getDocs(similarQuery);
             const similarData = similarSnap.docs
                 .map(doc => ({ ...doc.data(), id: doc.data().id || doc.id } as Product))
-                .filter(p => p.id !== productData.id) // Filter out the current product in the client
-                .slice(0, 4); // Ensure we only show 4
+                .filter(p => p.id !== productData.id) 
+                .slice(0, 4); 
             setSimilarProducts(similarData);
           }
 
@@ -205,7 +203,14 @@ export default function ProductDetailPage() {
 
           <div className="flex flex-col sm:flex-row gap-4">
             <AddToCartButton product={product} />
-            <Button size="lg" className="w-full sm:w-auto">Buy Now</Button>
+            {product.category === 'Kits' && (
+              <Button asChild size="lg" className="w-full sm:w-auto" variant="secondary">
+                  <Link href={`/rent/${product.id}`}>
+                      <CalendarClock className="mr-2 h-5 w-5" />
+                      Rent Now
+                  </Link>
+              </Button>
+            )}
           </div>
            
            <div className="mt-6 flex items-center gap-4">

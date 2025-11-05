@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -50,7 +49,7 @@ interface Coupon {
 
 function CheckoutForm() {
     const { user, loading: authLoading } = useAuth();
-    const { items, totalPrice, clearCart, loading: cartLoading } = useCart();
+    const { items, totalPrice, taxAmount, shippingCost, clearCart, loading: cartLoading } = useCart();
     const router = useRouter();
     const { toast } = useToast();
     const searchParams = useSearchParams();
@@ -59,8 +58,6 @@ function CheckoutForm() {
     const [couponCode, setCouponCode] = useState("");
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [couponLoading, setCouponLoading] = useState(false);
-
-    const shippingCost = 50.00;
 
     const discountAmount = useMemo(() => {
         if (!appliedCoupon) return 0;
@@ -81,12 +78,14 @@ function CheckoutForm() {
             discount = appliedCoupon.discountValue;
         }
         
-        // Ensure discount doesn't exceed the applicable total
         return Math.min(discount, applicableTotal);
 
     }, [appliedCoupon, items, totalPrice]);
 
-    const total = totalPrice - discountAmount + shippingCost;
+    const finalSubtotal = totalPrice - discountAmount;
+    const finalTaxAmount = finalSubtotal * 0.18;
+    const total = finalSubtotal + finalTaxAmount + shippingCost;
+
 
     const form = useForm<z.infer<typeof checkoutSchema>>({
         resolver: zodResolver(checkoutSchema),
@@ -146,7 +145,6 @@ function CheckoutForm() {
             const couponDoc = querySnapshot.docs[0];
             const couponData = { firestoreId: couponDoc.id, ...couponDoc.data() } as Coupon;
 
-            // Check if coupon is active and not expired
             const now = new Date();
             const expiryDate = couponData.expiryDate?.toDate();
 
@@ -197,6 +195,7 @@ function CheckoutForm() {
                 subtotal: totalPrice,
                 shipping: shippingCost,
                 discount: discountAmount,
+                tax: finalTaxAmount,
                 coupon: appliedCoupon?.code || null,
                 total,
                 status: 'pending',
@@ -205,7 +204,6 @@ function CheckoutForm() {
 
             await addDoc(collection(db, "orders"), orderData);
 
-            // Increment coupon usage count if a coupon was applied
             if (appliedCoupon) {
                 const couponRef = doc(db, "coupons", appliedCoupon.firestoreId);
                 await updateDoc(couponRef, {
@@ -438,6 +436,10 @@ function CheckoutForm() {
                                     <div className="flex justify-between text-green-600">
                                         <span>Discount</span>
                                         <span>- ₹{discountAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Tax (18%)</span>
+                                        <span>₹{finalTaxAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Shipping</span>

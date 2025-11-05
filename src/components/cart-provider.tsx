@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, createContext, useEffect, type ReactNode, useCallback } from "react";
@@ -20,12 +19,17 @@ interface CartContextType {
   clearCart: () => Promise<void>;
   totalItems: number;
   totalPrice: number;
+  shippingCost: number;
+  taxAmount: number;
+  total: number;
   loading: boolean;
 }
 
 export const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_CART_KEY = 'robomart-cart';
+const TAX_RATE = 0.18;
+const SHIPPING_COST = 100.00;
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
@@ -40,10 +44,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     if (cartSnap.exists()) {
       const cartData = cartSnap.data();
-      // TODO: Add validation here
       setItems(cartData.items || []);
     } else {
-      // If no Firestore cart, check local storage and merge if necessary
       const localCart = getCartFromLocalStorage();
       if (localCart.length > 0) {
         setItems(localCart);
@@ -161,6 +163,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (total, item) => total + item.price * item.quantity,
     0
   );
+  const taxAmount = totalPrice * TAX_RATE;
+  const total = totalPrice + taxAmount + SHIPPING_COST;
 
   return (
     <CartContext.Provider
@@ -172,6 +176,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         totalItems,
         totalPrice,
+        shippingCost: SHIPPING_COST,
+        taxAmount,
+        total,
         loading
       }}
     >
