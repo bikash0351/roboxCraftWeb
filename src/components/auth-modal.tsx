@@ -28,7 +28,7 @@ export function AuthModal() {
     const timer = setTimeout(() => {
       setIsOpen(true);
       sessionStorage.setItem("promoModalShown", "true");
-    }, 3000); // 3-second delay
+    }, 5000); // 5-second delay
 
     return () => clearTimeout(timer);
   }, [user, loading]);
