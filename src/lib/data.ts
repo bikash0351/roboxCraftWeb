@@ -1,5 +1,4 @@
 
-
 export interface Product {
   id: string;
   name: string;
@@ -27,8 +26,18 @@ export interface Course {
   id: string;
   title: string;
   description: string;
-  imageId: string;
+  featuredImage: string;
+  createdAt: any;
 }
+
+export interface Lesson {
+    id: string;
+    title: string;
+    content: string; // HTML content
+    videoUrl?: string;
+    order: number;
+}
+
 
 export interface User {
   id: string;
@@ -58,12 +67,5 @@ export interface BlogPost {
   excerpt: string;
   createdAt: any;
 }
-
-
-export const courses: Course[] = [
-    { id: 'course001', title: 'Introduction to Robotics with Arduino', description: 'A beginner-friendly course to get started with electronics and programming.', imageId: 'course-arduino' },
-    { id: 'course002', title: 'Advanced Robotics with Raspberry Pi', description: 'Learn to build complex robots with computer vision and AI.', imageId: 'course-raspberry-pi' },
-    { id: 'course003', title: '3D Printing for Robotics', description: 'Design and print custom parts for your robotic projects.', imageId: 'course-3d-printing' },
-];
 
 export const products: Product[] = [];

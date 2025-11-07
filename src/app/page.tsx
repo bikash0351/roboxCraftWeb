@@ -3,11 +3,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Bot, CircuitBoard, Code, Loader2, Newspaper, ToyBrick } from 'lucide-react';
+import { ArrowRight, Bot, CircuitBoard, Code, Loader2, Newspaper, ToyBrick, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages as placeholderImages } from '@/lib/placeholder-images';
-import { courses, type Product } from '@/lib/data';
+import { type Product, type Course } from '@/lib/data';
 import { ProductCard } from '@/components/product-card';
 import {
   Carousel,
@@ -21,11 +21,14 @@ import { cn } from '@/lib/utils';
 import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { BlogPost, BlogCard } from '@/components/blog-card';
+import { CourseCard } from '@/components/course-card';
+
 
 export default function Home() {
   const [kits, setKits] = useState<Product[]>([]);
   const [components, setComponents] = useState<Product[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   const posters = placeholderImages.filter(p => p.id.startsWith('hero-poster-'));
@@ -49,24 +52,30 @@ export default function Home() {
       try {
         const productsRef = collection(db, "products");
         const blogsRef = collection(db, "blogs");
+        const coursesRef = collection(db, "courses");
         
         const kitsQuery = query(productsRef, where("category", "==", "Kits"), limit(4));
         const componentsQuery = query(productsRef, where("category", "==", "Components"), limit(4));
         const blogsQuery = query(blogsRef, orderBy("createdAt", "desc"), limit(2));
+        const coursesQuery = query(coursesRef, orderBy("createdAt", "desc"), limit(2));
         
-        const [kitsSnapshot, componentsSnapshot, blogsSnapshot] = await Promise.all([
+        const [kitsSnapshot, componentsSnapshot, blogsSnapshot, coursesSnapshot] = await Promise.all([
           getDocs(kitsQuery),
           getDocs(componentsQuery),
-          getDocs(blogsQuery)
+          getDocs(blogsQuery),
+          getDocs(coursesQuery)
         ]);
 
         const kitsData = kitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         const componentsData = componentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         const blogsData = blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost));
+        const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
 
         setKits(kitsData);
         setComponents(componentsData);
         setBlogPosts(blogsData);
+        setCourses(coursesData);
+
       } catch (error) {
         console.error("Error fetching homepage data:", error);
       } finally {
@@ -140,7 +149,7 @@ export default function Home() {
           </Card>
           <Card className="flex flex-col items-center text-center p-2">
             <CardHeader className="p-2">
-              <Code className="mx-auto h-8 w-8 text-primary" />
+              <GraduationCap className="mx-auto h-8 w-8 text-primary" />
               <CardTitle className="font-headline text-base">Courses</CardTitle>
             </CardHeader>
             <CardContent className="p-2">
@@ -203,38 +212,20 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <h2 className="font-headline text-3xl font-bold tracking-tight">Popular Courses</h2>
           <Button variant="link" asChild>
-              <Link href="#">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+              <Link href="/courses">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
           </Button>
         </div>
-        <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
-          {courses.slice(0, 2).map(course => {
-            const courseImage = placeholderImages.find(p => p.id === course.imageId);
-            return (
-              <Card key={course.id} className="overflow-hidden">
-                <CardContent className="p-0">
-                  {courseImage && (
-                    <div className="relative h-48 w-full">
-                      <Image
-                        src={courseImage.imageUrl}
-                        alt={course.title}
-                        fill
-                        className="object-cover"
-                        data-ai-hint={courseImage.imageHint}
-                      />
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <h3 className="font-headline text-xl font-semibold">{course.title}</h3>
-                    <p className="mt-2 text-muted-foreground">{course.description}</p>
-                    <Button asChild className="mt-4">
-                      <Link href="#">Learn More</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+            {courses.map(course => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 my-12 md:my-16">
@@ -266,3 +257,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
