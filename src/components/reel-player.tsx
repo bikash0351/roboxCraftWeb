@@ -4,13 +4,25 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { Reel } from "@/lib/data";
-import { Heart, MessageCircle, Send, Loader2, Play, Pause } from "lucide-react";
+import { Heart, MessageCircle, Send, Loader2, Play, Pause, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
 import { Facebook, Twitter } from "lucide-react";
-import { doc, updateDoc, increment } from "firebase/firestore";
+import { collection, doc, updateDoc, increment, addDoc, getDocs, serverTimestamp, orderBy, query, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
+import { Input } from "./ui/input";
+import { Separator } from "./ui/separator";
+import { ScrollArea } from "./ui/scroll-area";
+import { useAuth } from "@/hooks/use-auth";
 
 const ReelVideo = ({ reel, isVisible }: { reel: Reel, isVisible: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,41 +85,136 @@ interface ReelPlayerProps {
     reel: Reel;
 }
 
-const ShareButtons = ({ url }: { url: string }) => {
+interface Comment {
+    id: string;
+    username: string;
+    userImage: string;
+    text: string;
+    createdAt: Timestamp;
+}
+
+const ShareSheet = ({ url, onShare }: { url: string, onShare: () => void }) => {
     const shareText = "Check out this awesome reel!";
     return (
-      <div className="flex gap-2">
-        <Button asChild variant="outline" size="icon">
-          <a
-            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Facebook className="h-5 w-5" />
-          </a>
-        </Button>
-        <Button asChild variant="outline" size="icon">
-          <a
-            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
-          </a>
-        </Button>
-        <Button asChild variant="outline" size="icon">
-          <a
-            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + url)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <MessageCircle className="h-5 w-5" />
-          </a>
-        </Button>
-      </div>
+      <SheetContent side="bottom" className="rounded-t-lg">
+        <SheetHeader>
+          <SheetTitle className="text-center">Share this Reel</SheetTitle>
+        </SheetHeader>
+        <div className="py-8 grid grid-cols-3 gap-4">
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" onClick={onShare} className="flex flex-col items-center gap-2 text-muted-foreground hover:text-primary">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center"><Facebook className="h-8 w-8" /></div>
+                <span>Facebook</span>
+            </a>
+            <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" onClick={onShare} className="flex flex-col items-center gap-2 text-muted-foreground hover:text-primary">
+                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center"><svg className="h-8 w-8" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg></div>
+                 <span>X (Twitter)</span>
+            </a>
+             <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + url)}`} target="_blank" rel="noopener noreferrer" onClick={onShare} className="flex flex-col items-center gap-2 text-muted-foreground hover:text-primary">
+                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center"><MessageCircle className="h-8 w-8" /></div>
+                 <span>WhatsApp</span>
+            </a>
+        </div>
+      </SheetContent>
     );
 };
 
+const CommentsSheet = ({ reel, initialCommentCount, onCommentPosted }: { reel: Reel, initialCommentCount: number, onCommentPosted: () => void }) => {
+    const { user } = useAuth();
+    const [comments, setComments] = useState<Comment[]>([]);
+    const [newComment, setNewComment] = useState("");
+    const [loadingComments, setLoadingComments] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const fetchComments = useCallback(async () => {
+        setLoadingComments(true);
+        try {
+            const commentsQuery = query(collection(db, `reels/${reel.id}/comments`), orderBy('createdAt', 'desc'));
+            const querySnapshot = await getDocs(commentsQuery);
+            const commentsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
+            setComments(commentsData);
+        } catch (error) {
+            console.error("Error fetching comments:", error);
+        } finally {
+            setLoadingComments(false);
+        }
+    }, [reel.id]);
+    
+    const handlePostComment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newComment.trim() || !user) return;
+
+        setIsSubmitting(true);
+        try {
+            const commentData = {
+                username: user.displayName || 'Anonymous',
+                userImage: user.photoURL || '',
+                text: newComment,
+                createdAt: serverTimestamp()
+            };
+            const commentRef = await addDoc(collection(db, `reels/${reel.id}/comments`), commentData);
+
+            // Add the new comment to the top of the list optimisticly
+            setComments(prev => [{ ...commentData, id: commentRef.id, createdAt: new Date() } as any, ...prev]);
+
+            setNewComment("");
+            onCommentPosted();
+        } catch (error) {
+            console.error("Error posting comment:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <SheetContent side="bottom" className="rounded-t-lg h-[80dvh] flex flex-col">
+            <SheetHeader className="text-center">
+                <SheetTitle>{initialCommentCount + comments.length} Comments</SheetTitle>
+            </SheetHeader>
+            <Separator className="my-2" />
+            <ScrollArea className="flex-1 -mx-6 px-6">
+                {loadingComments ? (
+                    <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : comments.length === 0 ? (
+                    <div className="flex justify-center items-center h-full text-muted-foreground">Be the first to comment!</div>
+                ) : (
+                    <div className="space-y-4 py-4">
+                        {comments.map(comment => (
+                            <div key={comment.id} className="flex gap-3">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={comment.userImage} alt={comment.username} />
+                                    <AvatarFallback>{comment.username.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="text-xs text-muted-foreground">{comment.username} • {comment.createdAt?.toDate().toLocaleDateString()}</p>
+                                    <p className="text-sm">{comment.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </ScrollArea>
+            <Separator />
+            <SheetFooter className="py-2">
+                <form onSubmit={handlePostComment} className="w-full flex items-center gap-2">
+                     <Avatar className="h-8 w-8">
+                        {user?.photoURL && <AvatarImage src={user.photoURL} />}
+                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <Input 
+                        placeholder="Add a comment..." 
+                        className="flex-1" 
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        disabled={!user || isSubmitting}
+                    />
+                    <Button type="submit" disabled={!newComment.trim() || isSubmitting}>
+                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Post'}
+                    </Button>
+                </form>
+            </SheetFooter>
+        </SheetContent>
+    )
+}
 
 export function ReelPlayer({ reel }: ReelPlayerProps) {
     const [likes, setLikes] = useState(reel.likes);
@@ -121,24 +228,27 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
     const [pageUrl, setPageUrl] = useState('');
 
     useEffect(() => {
-        setPageUrl(window.location.origin + '/reels');
-    }, []);
+        setPageUrl(window.location.origin + '/reels#' + reel.id);
+    }, [reel.id]);
 
-    const handleInteraction = async (field: "likes" | "comments" | "shares") => {
+    const handleInteraction = async (field: "likes" | "shares", value: number = 1) => {
         const reelRef = doc(db, "reels", reel.id);
-        await updateDoc(reelRef, { [field]: increment(1) });
+        await updateDoc(reelRef, { [field]: increment(value) });
     };
 
     const handleLike = () => {
-        handleInteraction("likes");
-        setLikes(prev => isLiked ? prev - 1 : prev + 1);
+        const newValue = isLiked ? -1 : 1;
+        handleInteraction("likes", newValue);
+        setLikes(prev => prev + newValue);
         setIsLiked(prev => !prev);
     };
 
-    const handleComment = () => {
-        handleInteraction("comments");
+    const handleCommentPosted = useCallback(() => {
+        const reelRef = doc(db, "reels", reel.id);
+        updateDoc(reelRef, { comments: increment(1) });
         setComments(prev => prev + 1);
-    };
+    }, [reel.id]);
+
 
     const handleShare = () => {
         handleInteraction("shares");
@@ -188,24 +298,29 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
                             <Heart className={cn("h-7 w-7", isLiked && "fill-red-500 text-red-500")} />
                             <span className="text-xs">{likes}</span>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleComment} className="h-12 w-12 flex-col gap-1 text-white hover:bg-white/10 hover:text-white">
-                            <MessageCircle className="h-7 w-7" />
-                            <span className="text-xs">{comments}</span>
-                        </Button>
-                         <Popover>
-                            <PopoverTrigger asChild>
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-12 w-12 flex-col gap-1 text-white hover:bg-white/10 hover:text-white">
+                                    <MessageCircle className="h-7 w-7" />
+                                    <span className="text-xs">{comments}</span>
+                                </Button>
+                            </SheetTrigger>
+                            <CommentsSheet reel={reel} initialCommentCount={comments} onCommentPosted={handleCommentPosted} />
+                        </Sheet>
+                         <Sheet>
+                            <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" onClick={handleShare} className="h-12 w-12 flex-col gap-1 text-white hover:bg-white/10 hover:text-white">
                                     <Send className="h-7 w-7" />
                                     <span className="text-xs">{shares}</span>
                                 </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2 bg-background/80 border-slate-700">
-                                <ShareButtons url={pageUrl} />
-                            </PopoverContent>
-                        </Popover>
+                            </SheetTrigger>
+                            <ShareSheet url={pageUrl} onShare={handleShare} />
+                        </Sheet>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
+
+    
