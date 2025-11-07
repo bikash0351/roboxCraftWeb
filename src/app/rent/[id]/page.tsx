@@ -38,6 +38,76 @@ interface RentalPlan {
   feePercentage: number;
 }
 
+const rentalPolicy = [
+  {
+    emoji: "🧩",
+    title: "1. Rental Duration & Refund Policy",
+    points: [
+      "The rental duration starts from the date of kit delivery.",
+      "Refunds will be processed as per the following structure:",
+    ],
+    subPoints: [
+      "🕐 7 Days Rental: 30% of kit price will be deducted; 70% refundable.",
+      "🕓 10 Days Rental: 35% of kit price will be deducted; 65% refundable.",
+      "🕕 15 Days Rental: 40% of kit price will be deducted; 60% refundable.",
+    ],
+    footer: "Refunds will be initiated only after the kit is returned in good condition and verified by our team."
+  },
+  {
+    emoji: "⚙️",
+    title: "2. Kit Usage & Condition",
+    points: [
+      "Customers are responsible for keeping the kit and all components in working condition.",
+      "Any missing or damaged components will result in additional charges, deducted from the refundable amount.",
+      "Do not modify or reprogram components beyond the provided tutorials or project guide.",
+    ]
+  },
+  {
+    emoji: "📦",
+    title: "3. Kit Return Process",
+    points: [
+      "Kits must be returned with all accessories, including sensors, motors, boards, and cables.",
+      "Returns must be made on or before the due date. Late returns may lead to an additional ₹100/day penalty.",
+      "RoboXCraft reserves the right to inspect kits before processing any refund.",
+    ]
+  },
+  {
+    emoji: "💳",
+    title: "4. Payment & Refund",
+    points: [
+      "Full kit price will be charged initially during rental checkout.",
+      "The applicable refundable amount will be credited within 5–7 business days after successful return verification.",
+      "Refunds will be processed via the same payment method used for purchase.",
+    ]
+  },
+  {
+    emoji: "🚫",
+    title: "5. Damage & Misuse Policy",
+    points: [
+      "If the kit is found physically damaged, burnt, or tampered, the refund will be forfeited entirely.",
+      "RoboXCraft reserves the right to deny future rentals in case of repeated misuse or negligence.",
+    ]
+  },
+  {
+    emoji: "📲",
+    title: "6. Customer Responsibility",
+    points: [
+      "Handle kits with care and follow RoboXCraft tutorials or manuals for project execution.",
+      "Ensure proper packaging while returning the kit to avoid transit damage.",
+      "Keep a copy of the return confirmation for reference until your refund is processed.",
+    ]
+  },
+  {
+    emoji: "⚖️",
+    title: "7. RoboXCraft Rights",
+    points: [
+      "RoboXCraft reserves the right to modify, suspend, or terminate the rental policy at any time without prior notice.",
+      "In case of any disputes, RoboXCraft’s decision will be final and binding.",
+    ]
+  }
+];
+
+
 function RentCheckoutForm() {
     const params = useParams();
     const productId = params.id as string;
@@ -237,6 +307,30 @@ function RentCheckoutForm() {
                                  <FormField control={form.control} name="country" render={({ field }) => (<FormItem className="sm:col-span-2"><FormLabel>Country</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)}/>
                             </CardContent>
                         </Card>
+                        {/* Rental Policy */}
+                        <Card>
+                             <CardHeader>
+                                <CardTitle className="font-headline">Rental Policy</CardTitle>
+                                <CardDescription>Please read the terms and conditions carefully before renting.</CardDescription>
+                             </CardHeader>
+                             <CardContent className="space-y-6 text-sm text-muted-foreground">
+                                {rentalPolicy.map((section, index) => (
+                                    <div key={index}>
+                                        <h4 className="font-semibold text-base text-foreground mb-2">{section.emoji} {section.title}</h4>
+                                        <div className="space-y-2 pl-2">
+                                            {section.points?.map((point, pIndex) => <p key={pIndex}>{point}</p>)}
+                                            {section.subPoints && (
+                                                <ul className="space-y-1 pl-4">
+                                                    {section.subPoints.map((subPoint, sIndex) => <li key={sIndex}>{subPoint}</li>)}
+                                                </ul>
+                                            )}
+                                            {section.footer && <p className="pt-2">{section.footer}</p>}
+                                        </div>
+                                        {index < rentalPolicy.length - 1 && <Separator className="mt-6" />}
+                                    </div>
+                                ))}
+                             </CardContent>
+                        </Card>
                     </div>
 
                     {/* Order Summary */}
@@ -309,5 +403,6 @@ export default function RentPage() {
         </Suspense>
     )
 }
+
 
     
