@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 import { ContentFooter } from '@/components/content-footer';
 import { AuthProvider } from '@/components/auth-provider';
 import { AuthModal } from '@/components/auth-modal';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export default function RootLayout({
   children,
@@ -36,23 +37,30 @@ export default function RootLayout({
           'font-body antialiased',
           !isReelsPage && 'pb-16 md:pb-0'
         )}>
-        <AuthProvider>
-          <CartProvider>
-            <div className="relative flex min-h-dvh flex-col bg-background">
-              <SiteHeader />
-              <main className={cn(
-                "flex-1",
-                !isReelsPage && "pt-20" 
-              )}>
-                {children}
-              </main>
-              {!isReelsPage && <ContentFooter />}
-              <SiteFooter />
-            </div>
-            <Toaster />
-            <AuthModal />
-          </CartProvider>
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <CartProvider>
+              <div className="relative flex min-h-dvh flex-col bg-background">
+                <SiteHeader />
+                <main className={cn(
+                  "flex-1",
+                  !isReelsPage && "pt-20" 
+                )}>
+                  {children}
+                </main>
+                {!isReelsPage && <ContentFooter />}
+                <SiteFooter />
+              </div>
+              <Toaster />
+              <AuthModal />
+            </CartProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { Input } from "./ui/input";
 import React from "react";
+import { ModeToggle } from "./mode-toggle";
 
 
 export function SiteHeader() {
@@ -36,7 +37,7 @@ export function SiteHeader() {
             className="h-12 w-12 text-primary object-contain"
           />
         </Link>
-        <div className="flex-1">
+        <div className="flex flex-1 items-center gap-2">
           <form onSubmit={handleSearch} className="relative w-full">
             <Input
               type="search"
@@ -46,6 +47,7 @@ export function SiteHeader() {
             />
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           </form>
+          <ModeToggle />
         </div>
       </div>
     </header>
