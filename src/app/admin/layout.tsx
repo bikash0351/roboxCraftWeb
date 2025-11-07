@@ -17,6 +17,7 @@ import {
   Users2,
   Tags,
   CalendarClock,
+  Clapperboard,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -78,6 +79,7 @@ export default function AdminLayout({
     { href: "/admin/tags", label: "Tags", icon: Tags },
     { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
+    { href: "/admin/reels", label: "Reels", icon: Clapperboard },
     { href: "/admin/rentals", label: "Rentals", icon: CalendarClock },
     { href: "/admin/users", label: "Admin Users", icon: Users2 },
     { href: "/admin/account", label: "Account", icon: Settings },
