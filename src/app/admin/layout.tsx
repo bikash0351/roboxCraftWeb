@@ -18,6 +18,7 @@ import {
   Tags,
   CalendarClock,
   Clapperboard,
+  Newspaper,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -77,6 +78,7 @@ export default function AdminLayout({
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/products", label: "Products", icon: Package },
     { href: "/admin/tags", label: "Tags", icon: Tags },
+    { href: "/admin/blogs", label: "Blog", icon: Newspaper },
     { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
     { href: "/admin/reels", label: "Reels", icon: Clapperboard },
@@ -85,7 +87,7 @@ export default function AdminLayout({
     { href: "/admin/account", label: "Account", icon: Settings },
   ];
 
-  if (pathname === '/admin/login') {
+  if (pathname === '/admin/login' || pathname.startsWith('/admin/blogs/new') || pathname.startsWith('/admin/blogs/edit')) {
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
@@ -131,7 +133,8 @@ export default function AdminLayout({
                           href={href}
                           className={cn(
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                            pathname === href && "bg-muted text-primary"
+                            pathname.startsWith(href) && href !== "/admin" ? "bg-muted text-primary" : "",
+                            pathname === "/admin" && href === "/admin" ? "bg-muted text-primary" : ""
                           )}
                         >
                           <Icon className="h-4 w-4" />

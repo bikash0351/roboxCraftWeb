@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Bot, CircuitBoard, Code, Loader2, ToyBrick } from 'lucide-react';
+import { ArrowRight, Bot, CircuitBoard, Code, Loader2, Newspaper, ToyBrick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages as placeholderImages } from '@/lib/placeholder-images';
@@ -18,12 +18,14 @@ import {
 import Autoplay from "embla-carousel-autoplay";
 import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { BlogPost, BlogCard } from '@/components/blog-card';
 
 export default function Home() {
   const [kits, setKits] = useState<Product[]>([]);
   const [components, setComponents] = useState<Product[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   const posters = placeholderImages.filter(p => p.id.startsWith('hero-poster-'));
@@ -42,31 +44,36 @@ export default function Home() {
   }, [api]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchHomepageData = async () => {
       setLoading(true);
       try {
         const productsRef = collection(db, "products");
+        const blogsRef = collection(db, "blogs");
         
         const kitsQuery = query(productsRef, where("category", "==", "Kits"), limit(4));
         const componentsQuery = query(productsRef, where("category", "==", "Components"), limit(4));
+        const blogsQuery = query(blogsRef, orderBy("createdAt", "desc"), limit(2));
         
-        const [kitsSnapshot, componentsSnapshot] = await Promise.all([
+        const [kitsSnapshot, componentsSnapshot, blogsSnapshot] = await Promise.all([
           getDocs(kitsQuery),
-          getDocs(componentsQuery)
+          getDocs(componentsQuery),
+          getDocs(blogsQuery)
         ]);
 
         const kitsData = kitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         const componentsData = componentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const blogsData = blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost));
 
         setKits(kitsData);
         setComponents(componentsData);
+        setBlogPosts(blogsData);
       } catch (error) {
-        console.error("Error fetching products for homepage:", error);
+        console.error("Error fetching homepage data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchHomepageData();
   }, []);
 
   return (
@@ -140,13 +147,13 @@ export default function Home() {
               <p className="text-xs text-muted-foreground">Learn from experts and master new skills in robotics.</p>
             </CardContent>
           </Card>
-          <Card className="flex flex-col items-center text-center p-2">
+           <Card className="flex flex-col items-center text-center p-2">
             <CardHeader className="p-2">
-              <Bot className="mx-auto h-8 w-8 text-primary" />
-              <CardTitle className="font-headline text-base">AI Hub</CardTitle>
+              <Newspaper className="mx-auto h-8 w-8 text-primary" />
+              <CardTitle className="font-headline text-base">Blog</CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground">Get personalized recommendations for your projects.</p>
+              <p className="text-xs text-muted-foreground">Read our latest articles and project tutorials.</p>
             </CardContent>
           </Card>
         </div>
@@ -192,10 +199,15 @@ export default function Home() {
         )}
       </section>
 
-      <section className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 my-12 md:my-16">
-        <h2 className="font-headline text-3xl font-bold tracking-tight">Popular Courses</h2>
-        <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {courses.map(course => {
+      <section className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-12 md:my-16">
+        <div className="flex items-center justify-between">
+          <h2 className="font-headline text-3xl font-bold tracking-tight">Popular Courses</h2>
+          <Button variant="link" asChild>
+              <Link href="#">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+          </Button>
+        </div>
+        <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+          {courses.slice(0, 2).map(course => {
             const courseImage = placeholderImages.find(p => p.id === course.imageId);
             return (
               <Card key={course.id} className="overflow-hidden">
@@ -224,6 +236,33 @@ export default function Home() {
           })}
         </div>
       </section>
+
+      <section className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 my-12 md:my-16">
+        <div className="flex items-center justify-between">
+            <h2 className="font-headline text-3xl font-bold tracking-tight">From the Blog</h2>
+             <Button variant="link" asChild>
+                <Link href="/blog">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+            </Button>
+        </div>
+         {loading ? (
+           <div className="flex justify-center items-center h-48">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : blogPosts.length === 0 ? (
+            <div className="text-center py-16 border-2 border-dashed rounded-lg mt-6">
+                <Newspaper className="mx-auto h-16 w-16 text-muted-foreground" />
+                <h3 className="mt-4 text-xl font-semibold">No Blog Posts Yet</h3>
+                <p className="mt-2 text-muted-foreground">Check back soon for our latest articles and tutorials!</p>
+            </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+            {blogPosts.map(post => (
+              <BlogCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
+      </section>
+
     </div>
   );
 }

@@ -49,6 +49,17 @@ export interface Reel {
   uploaderImage: string;
 }
 
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string; // Stored as HTML
+  featuredImage: string;
+  excerpt: string;
+  createdAt: any;
+}
+
+
 export const courses: Course[] = [
     { id: 'course001', title: 'Introduction to Robotics with Arduino', description: 'A beginner-friendly course to get started with electronics and programming.', imageId: 'course-arduino' },
     { id: 'course002', title: 'Advanced Robotics with Raspberry Pi', description: 'Learn to build complex robots with computer vision and AI.', imageId: 'course-raspberry-pi' },
