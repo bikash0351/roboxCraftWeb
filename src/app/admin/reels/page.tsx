@@ -22,6 +22,8 @@ import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, serverTime
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import Image from "next/image";
 
+// Note: For this page to function correctly, Firebase Storage rules must allow public read access
+// to the `reels/` path.
 const reelSchema = z.object({
   description: z.string().min(3, "Description is required"),
   video: z.instanceof(File).refine(file => file.size > 0, "A video file is required."),

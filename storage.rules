@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow public read access to all files in the 'reels' folder
+    match /reels/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null; // Or more specific admin rules
+    }
+
+    // Allow read/write access to profile images only for the owner
+    match /profile-images/{userId}/{allPaths=**} {
+      allow read; // Allow public read for anyone to see profile pics
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow read/write access to product images for authenticated users
+    // Consider making this admin-only for writes in production
+    match /products/{allPaths=**} {
+        allow read;
+        allow write: if request.auth != null;
+    }
+
+    // Default deny for all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
