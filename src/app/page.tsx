@@ -219,6 +219,12 @@ export default function Home() {
           <div className="flex justify-center items-center h-48">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : courses.length === 0 ? (
+            <div className="text-center py-16 border-2 border-dashed rounded-lg mt-6">
+                <GraduationCap className="mx-auto h-16 w-16 text-muted-foreground" />
+                <h3 className="mt-4 text-xl font-semibold">No Courses Yet</h3>
+                <p className="mt-2 text-muted-foreground">Our curriculum is under development. Check back soon!</p>
+            </div>
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
             {courses.map(course => (
@@ -257,5 +263,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
