@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { type Product } from '@/lib/data';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query } from 'firebase/firestore';
@@ -12,7 +12,7 @@ import { ProductGrid } from '@/components/product-grid';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
-export default function ShopPage() {
+function ShopContent() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +23,7 @@ export default function ShopPage() {
         const productsRef = collection(db, "products");
         const productsQuery = query(productsRef);
         const querySnapshot = await getDocs(productsQuery);
-        const productsData = querySnapshot.docs.map(doc => ({ ...doc.data() } as Product));
+        const productsData = querySnapshot.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() } as Product));
         setAllProducts(productsData);
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -97,4 +97,16 @@ export default function ShopPage() {
       </div>
     </div>
   );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={
+        <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center">
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        </div>
+    }>
+        <ShopContent />
+    </Suspense>
+  )
 }

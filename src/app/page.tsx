@@ -129,42 +129,50 @@ export default function Home() {
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-6">
         <h2 className="font-headline text-3xl font-bold tracking-tight text-center">Explore Our Universe</h2>
         <div className="mt-6 grid grid-cols-2 gap-4">
-          <Card className="flex flex-col items-center text-center p-2">
-            <CardHeader className="p-2">
-              <ToyBrick className="mx-auto h-8 w-8 text-primary" />
-              <CardTitle className="font-headline text-base">Robotic Kits</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground">All-in-one kits to start your journey into robotics.</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col items-center text-center p-2">
-            <CardHeader className="p-2">
-              <CircuitBoard className="mx-auto h-8 w-8 text-primary" />
-              <CardTitle className="font-headline text-base">Components</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground">A wide range of sensors, motors, and controllers.</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col items-center text-center p-2">
-            <CardHeader className="p-2">
-              <GraduationCap className="mx-auto h-8 w-8 text-primary" />
-              <CardTitle className="font-headline text-base">Courses</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground">Learn from experts and master new skills in robotics.</p>
-            </CardContent>
-          </Card>
-           <Card className="flex flex-col items-center text-center p-2">
-            <CardHeader className="p-2">
-              <Newspaper className="mx-auto h-8 w-8 text-primary" />
-              <CardTitle className="font-headline text-base">Blog</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground">Read our latest articles and project tutorials.</p>
-            </CardContent>
-          </Card>
+          <Link href="/shop?category=Kits" className="hover:scale-105 transition-transform duration-300">
+            <Card className="flex flex-col items-center text-center p-2 h-full">
+              <CardHeader className="p-2">
+                <ToyBrick className="mx-auto h-8 w-8 text-primary" />
+                <CardTitle className="font-headline text-base">Robotic Kits</CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <p className="text-xs text-muted-foreground">All-in-one kits to start your journey into robotics.</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/shop?category=Components" className="hover:scale-105 transition-transform duration-300">
+            <Card className="flex flex-col items-center text-center p-2 h-full">
+              <CardHeader className="p-2">
+                <CircuitBoard className="mx-auto h-8 w-8 text-primary" />
+                <CardTitle className="font-headline text-base">Components</CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <p className="text-xs text-muted-foreground">A wide range of sensors, motors, and controllers.</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/courses" className="hover:scale-105 transition-transform duration-300">
+            <Card className="flex flex-col items-center text-center p-2 h-full">
+              <CardHeader className="p-2">
+                <GraduationCap className="mx-auto h-8 w-8 text-primary" />
+                <CardTitle className="font-headline text-base">Courses</CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <p className="text-xs text-muted-foreground">Learn from experts and master new skills in robotics.</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/blog" className="hover:scale-105 transition-transform duration-300">
+             <Card className="flex flex-col items-center text-center p-2 h-full">
+              <CardHeader className="p-2">
+                <Newspaper className="mx-auto h-8 w-8 text-primary" />
+                <CardTitle className="font-headline text-base">Blog</CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <p className="text-xs text-muted-foreground">Read our latest articles and project tutorials.</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </section>
       

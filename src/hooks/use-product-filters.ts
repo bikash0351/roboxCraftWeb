@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Product } from "@/lib/data";
 
 export type SortOption = "price-asc" | "price-desc" | "name-asc" | "name-desc";
@@ -13,11 +14,13 @@ export interface FilterState {
 }
 
 export function useProductFilters(products: Product[]) {
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get('category');
   const [isMounted, setIsMounted] = useState(false);
   const highestPrice = useMemo(() => Math.ceil(Math.max(...products.map(p => p.price), 0) / 10) * 10, [products]);
 
   const [filters, setFilters] = useState<FilterState>({
-    categories: [],
+    categories: initialCategory ? [initialCategory] : [],
     maxPrice: highestPrice,
     inStock: false,
   });
