@@ -175,7 +175,7 @@ function ImageManager() {
 
 
 function ProductFormFields() {
-    const { control, setValue, watch, getValues } = useFormContext<z.infer<typeof productSchema>>();
+    const { control, setValue, watch, formState: { dirtyFields } } = useFormContext<z.infer<typeof productSchema>>();
     const costPrice = watch('costPrice');
     const price = watch('price');
     const discountPercentage = watch('discountPercentage');
@@ -196,22 +196,38 @@ function ProductFormFields() {
         const cost = Number(costPrice) || 0;
         const currentPrice = Number(price) || 0;
         const discount = Number(discountPercentage) || 0;
+        
+        if (cost <= 0) return;
 
-        if (cost > 0) {
-            if (discount > 0) {
-                 const newPrice = cost * (1 - discount / 100);
-                 if (Math.abs(newPrice - currentPrice) > 0.01) {
-                    setValue('price', Number(newPrice.toFixed(2)));
-                 }
-            } 
-            else if (currentPrice < cost) {
+        // If discount is changed, update price
+        if (dirtyFields.discountPercentage) {
+            const newPrice = cost * (1 - discount / 100);
+            if (Math.abs(newPrice - currentPrice) > 0.01) {
+                setValue('price', Number(newPrice.toFixed(2)));
+            }
+        } 
+        // If price is changed, update discount
+        else if (dirtyFields.price) {
+            if (currentPrice < cost) {
                 const newDiscount = ((cost - currentPrice) / cost) * 100;
-                if (Math.abs(newDiscount - discount) > 0.01) {
+                 if (Math.abs(newDiscount - discount) > 0.01) {
                     setValue('discountPercentage', Number(newDiscount.toFixed(2)));
+                }
+            } else {
+                 if (discount !== 0) {
+                    setValue('discountPercentage', 0);
                 }
             }
         }
-    }, [price, costPrice, discountPercentage, setValue]);
+        // if cost price is changed, update price based on discount
+        else if (dirtyFields.costPrice) {
+            const newPrice = cost * (1 - discount / 100);
+             if (Math.abs(newPrice - currentPrice) > 0.01) {
+                setValue('price', Number(newPrice.toFixed(2)));
+            }
+        }
+
+    }, [price, costPrice, discountPercentage, setValue, dirtyFields]);
 
     return (
         <>
@@ -443,7 +459,7 @@ export default function AdminProductsPage() {
             name: "",
             category: "Kits",
             price: 0,
-            costPrice: undefined,
+            costPrice: 0,
             discountPercentage: 0,
             stock: 0,
             imageUrls: [],
@@ -498,7 +514,7 @@ export default function AdminProductsPage() {
         if (product) {
             form.reset({
                 ...product,
-                costPrice: product.costPrice || undefined,
+                costPrice: product.costPrice || 0,
                 discountPercentage: product.discountPercentage || 0,
                 tags: product.tags || [],
                 kitContents: Array.isArray(product.kitContents) ? product.kitContents.join('\n') : '',
@@ -509,7 +525,7 @@ export default function AdminProductsPage() {
                 name: "",
                 category: "Kits",
                 price: 0,
-                costPrice: undefined,
+                costPrice: 0,
                 discountPercentage: 0,
                 stock: 0,
                 imageUrls: [],
