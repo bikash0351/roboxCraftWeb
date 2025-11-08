@@ -7,12 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/use-cart";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function CartPage() {
-    const { items, updateQuantity, removeFromCart, clearCart, totalPrice, taxAmount, shippingCost, total } = useCart();
+    const { 
+        items, updateQuantity, removeFromCart, clearCart, 
+        totalPrice, taxAmount, shippingCost, total,
+        appliedCoupon, applyCoupon, removeCoupon, discountAmount 
+    } = useCart();
     
+    const [couponCode, setCouponCode] = useState("");
+    const [couponLoading, setCouponLoading] = useState(false);
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setCouponLoading(true);
+        await applyCoupon(couponCode);
+        setCouponLoading(false);
+    };
+
     if (items.length === 0) {
         return (
             <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center gap-6 text-center">
@@ -65,7 +83,7 @@ export default function CartPage() {
                             </Card>
                         );
                     })}
-                     <Button variant="outline" onClick={clearCart}>
+                     <Button variant="outline" onClick={() => clearCart()}>
                         Clear Cart
                     </Button>
                 </div>
@@ -76,9 +94,35 @@ export default function CartPage() {
                             <CardTitle className="font-headline">Order Summary</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                {!appliedCoupon ? (
+                                    <div className="flex items-end gap-2">
+                                        <div className="flex-grow">
+                                            <Label htmlFor="coupon">Coupon Code</Label>
+                                            <Input id="coupon" placeholder="Enter coupon" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={couponLoading} />
+                                        </div>
+                                        <Button type="button" onClick={handleApplyCoupon} disabled={!couponCode || couponLoading}>
+                                            {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                                        </Button>
+                                    </div>
+                                    ) : (
+                                    <div className="flex justify-between items-center text-sm">
+                                        <p className="text-muted-foreground">Coupon Applied:</p>
+                                        <Badge>
+                                            {appliedCoupon.code}
+                                            <button type="button" onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
+                                        </Badge>
+                                    </div>
+                                )}
+                            </div>
+                            <Separator />
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>₹{totalPrice.toFixed(2)}</span>
+                            </div>
+                             <div className="flex justify-between text-green-600">
+                                <span>Discount</span>
+                                <span>- ₹{discountAmount.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Tax (18%)</span>

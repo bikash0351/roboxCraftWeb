@@ -14,15 +14,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, Suspense, useState, useMemo } from "react";
+import { useEffect, Suspense } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { addDoc, collection, serverTimestamp, getDocs, query, where, doc, updateDoc, increment } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { type Timestamp } from "firebase/firestore";
-
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -37,55 +34,18 @@ const checkoutSchema = z.object({
   }),
 });
 
-interface Coupon {
-  firestoreId: string;
-  code: string;
-  discountType: 'percentage' | 'amount';
-  discountValue: number;
-  categoryType: 'Universal' | 'Kits' | 'Components';
-  status: 'active' | 'paused';
-  expiryDate?: Timestamp;
-}
 
 function CheckoutForm() {
     const { user, loading: authLoading } = useAuth();
-    const { items, totalPrice, taxAmount, shippingCost, clearCart, loading: cartLoading } = useCart();
+    const { 
+        items, totalPrice, taxAmount, shippingCost, total,
+        appliedCoupon, discountAmount,
+        clearCart, loading: cartLoading 
+    } = useCart();
     const router = useRouter();
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const redirect = searchParams.get('redirect');
-
-    const [couponCode, setCouponCode] = useState("");
-    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-    const [couponLoading, setCouponLoading] = useState(false);
-
-    const discountAmount = useMemo(() => {
-        if (!appliedCoupon) return 0;
-        
-        let applicableTotal = 0;
-        if (appliedCoupon.categoryType === 'Universal') {
-            applicableTotal = totalPrice;
-        } else {
-            applicableTotal = items
-                .filter(item => item.category === appliedCoupon.categoryType)
-                .reduce((sum, item) => sum + item.price * item.quantity, 0);
-        }
-
-        let discount = 0;
-        if (appliedCoupon.discountType === 'percentage') {
-            discount = (applicableTotal * appliedCoupon.discountValue) / 100;
-        } else { // 'amount'
-            discount = appliedCoupon.discountValue;
-        }
-        
-        return Math.min(discount, applicableTotal);
-
-    }, [appliedCoupon, items, totalPrice]);
-
-    const finalSubtotal = totalPrice - discountAmount;
-    const finalTaxAmount = finalSubtotal * 0.18;
-    const total = finalSubtotal + finalTaxAmount + shippingCost;
-
 
     const form = useForm<z.infer<typeof checkoutSchema>>({
         resolver: zodResolver(checkoutSchema),
@@ -129,52 +89,6 @@ function CheckoutForm() {
         }
     }, [items, cartLoading, router, redirect]);
 
-    const handleApplyCoupon = async () => {
-        if (!couponCode) return;
-        setCouponLoading(true);
-        try {
-            const q = query(collection(db, "coupons"), where("code", "==", couponCode.toUpperCase()));
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
-                toast({ variant: "destructive", title: "Invalid Coupon Code" });
-                setAppliedCoupon(null);
-                return;
-            } 
-            
-            const couponDoc = querySnapshot.docs[0];
-            const couponData = { firestoreId: couponDoc.id, ...couponDoc.data() } as Coupon;
-
-            const now = new Date();
-            const expiryDate = couponData.expiryDate?.toDate();
-
-            if (couponData.status !== 'active') {
-                toast({ variant: "destructive", title: "Coupon is not active" });
-                setAppliedCoupon(null);
-                return;
-            }
-
-            if (expiryDate && expiryDate < now) {
-                toast({ variant: "destructive", title: "This coupon has expired" });
-                setAppliedCoupon(null);
-                return;
-            }
-
-            setAppliedCoupon(couponData);
-            toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
-
-        } catch (error) {
-            toast({ variant: "destructive", title: "Error applying coupon" });
-        } finally {
-            setCouponLoading(false);
-        }
-    };
-
-    const removeCoupon = () => {
-        setAppliedCoupon(null);
-        setCouponCode("");
-        toast({ title: "Coupon removed" });
-    }
 
     async function onSubmit(data: z.infer<typeof checkoutSchema>) {
         if (!user) {
@@ -195,7 +109,7 @@ function CheckoutForm() {
                 subtotal: totalPrice,
                 shipping: shippingCost,
                 discount: discountAmount,
-                tax: finalTaxAmount,
+                tax: taxAmount,
                 coupon: appliedCoupon?.code || null,
                 total,
                 status: 'pending',
@@ -408,27 +322,15 @@ function CheckoutForm() {
                                     )})}
                                 </div>
                                 <Separator />
+                                {appliedCoupon && (
+                                    <div className="flex justify-between items-center text-sm">
+                                        <p className="text-muted-foreground">Coupon Applied:</p>
+                                        <Badge>
+                                            {appliedCoupon.code}
+                                        </Badge>
+                                    </div>
+                                )}
                                 <div className="space-y-2">
-                                     {!appliedCoupon ? (
-                                        <div className="flex items-end gap-2">
-                                            <div className="flex-grow">
-                                                <Label htmlFor="coupon">Coupon Code</Label>
-                                                <Input id="coupon" placeholder="Enter coupon" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={couponLoading} />
-                                            </div>
-                                            <Button type="button" onClick={handleApplyCoupon} disabled={!couponCode || couponLoading}>
-                                                {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
-                                            </Button>
-                                        </div>
-                                     ) : (
-                                        <div className="flex justify-between items-center text-sm">
-                                            <p className="text-muted-foreground">Coupon Applied:</p>
-                                            <Badge>
-                                                {appliedCoupon.code}
-                                                <button type="button" onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
-                                            </Badge>
-                                        </div>
-                                     )}
-                                    <Separator />
                                     <div className="flex justify-between">
                                         <span>Subtotal</span>
                                         <span>₹{totalPrice.toFixed(2)}</span>
@@ -439,7 +341,7 @@ function CheckoutForm() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Tax (18%)</span>
-                                        <span>₹{finalTaxAmount.toFixed(2)}</span>
+                                        <span>₹{taxAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Shipping</span>
@@ -450,7 +352,6 @@ function CheckoutForm() {
                                         <span>Total</span>
                                         <span>₹{total.toFixed(2)}</span>
                                     </div>
-
                                 </div>
                             </CardContent>
                         </Card>
