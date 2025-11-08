@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck, CalendarClock, Bolt } from "lucide-react";
+import { ArrowRight, Star, Loader2, Share2, Twitter, Facebook, MessageCircle, PackageCheck, CalendarClock, Heart } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -23,6 +23,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 
 function ShareButtons() {
@@ -63,6 +64,7 @@ export default function ProductDetailPage() {
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const { isInWishlist, toggleWishlist } = useWishlist();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -124,6 +126,8 @@ export default function ProductDetailPage() {
   const discountPercentage = hasDiscount
     ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
     : 0;
+  
+  const isWishlisted = isInWishlist(product.id);
 
   return (
     <div className="container mx-auto max-w-6xl py-8 px-4 sm:px-6 lg:px-8">
@@ -147,6 +151,14 @@ export default function ProductDetailPage() {
                 -{discountPercentage}%
               </Badge>
             )}
+             <Button 
+                size="icon" 
+                variant="secondary" 
+                className="absolute top-3 right-3 rounded-full h-12 w-12"
+                onClick={() => toggleWishlist(product)}
+              >
+                <Heart className={cn("h-6 w-6 text-foreground", isWishlisted && "fill-red-500 text-red-500")} />
+              </Button>
           </div>
           {productImages && productImages.length > 1 && (
             <div className="mt-4 grid grid-cols-5 gap-2">

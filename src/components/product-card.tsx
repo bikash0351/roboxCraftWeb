@@ -10,8 +10,9 @@ import { Button } from "./ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, ShoppingCart } from "lucide-react";
+import { Check, Loader2, ShoppingCart, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 
 interface ProductCardProps {
@@ -20,10 +21,13 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const [buttonState, setButtonState] = useState<"idle" | "loading" | "added">("idle");
   const { toast } = useToast();
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent link navigation
+    e.stopPropagation();
     setButtonState("loading");
     setTimeout(() => {
       addItem(product);
@@ -32,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
           title: "Added to Cart",
           description: `${product.name} has been added to your cart.`
       });
-    }, 500); // Simulate network delay
+    }, 500);
   };
 
   useEffect(() => {
@@ -42,6 +46,12 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   }, [buttonState]);
 
+  const handleWishlistToggle = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent link navigation
+    e.stopPropagation();
+    toggleWishlist(product);
+  }
+
   const hasDiscount = product.costPrice && product.costPrice > product.price;
   const discountPercentage = hasDiscount
     ? Math.round(((product.costPrice - product.price) / product.costPrice) * 100)
@@ -49,10 +59,11 @@ export function ProductCard({ product }: ProductCardProps) {
   
   const imageSrc = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : "https://placehold.co/400x400";
   const productLink = `/shop/${product.id}`;
+  const isWishlisted = isInWishlist(product.id);
 
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-lg">
+    <Card className="flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-lg group">
       <Link href={productLink} className="flex flex-col flex-1">
         <CardHeader className="relative p-0">
           <div className="relative aspect-square w-full bg-muted">
@@ -74,6 +85,14 @@ export function ProductCard({ product }: ProductCardProps) {
                 -{discountPercentage}%
               </Badge>
             )}
+             <Button 
+                size="icon" 
+                variant="secondary" 
+                className="absolute top-2 right-2 rounded-full h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleWishlistToggle}
+              >
+                <Heart className={cn("h-5 w-5 text-foreground", isWishlisted && "fill-red-500 text-red-500")} />
+              </Button>
           </div>
         </CardHeader>
         <CardContent className="flex-1 p-4 pb-2 flex flex-col">

@@ -11,6 +11,7 @@ import { ContentFooter } from '@/components/content-footer';
 import { AuthProvider } from '@/components/auth-provider';
 import { AuthModal } from '@/components/auth-modal';
 import { ThemeProvider } from '@/components/theme-provider';
+import { WishlistProvider } from '@/components/wishlist-provider';
 
 export default function RootLayout({
   children,
@@ -45,19 +46,21 @@ export default function RootLayout({
         >
           <AuthProvider>
             <CartProvider>
-              <div className="relative flex min-h-dvh flex-col bg-background">
-                <SiteHeader />
-                <main className={cn(
-                  "flex-1",
-                  !isReelsPage && "pt-20" 
-                )}>
-                  {children}
-                </main>
-                {!isReelsPage && <ContentFooter />}
-                <SiteFooter />
-              </div>
-              <Toaster />
-              <AuthModal />
+              <WishlistProvider>
+                <div className="relative flex min-h-dvh flex-col bg-background">
+                  <SiteHeader />
+                  <main className={cn(
+                    "flex-1",
+                    !isReelsPage && "pt-20" 
+                  )}>
+                    {children}
+                  </main>
+                  {!isReelsPage && <ContentFooter />}
+                  <SiteFooter />
+                </div>
+                <Toaster />
+                <AuthModal />
+              </WishlistProvider>
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>

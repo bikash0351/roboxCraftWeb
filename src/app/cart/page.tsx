@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/use-cart";
-import { Minus, Plus, ShoppingCart, Trash2, Loader2 } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Loader2, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useWishlist } from "@/hooks/use-wishlist";
+import { ProductCard } from "@/components/product-card";
 
 export default function CartPage() {
     const { 
@@ -20,6 +22,7 @@ export default function CartPage() {
         totalPrice, taxAmount, shippingCost, total,
         appliedCoupon, applyCoupon, removeCoupon, discountAmount 
     } = useCart();
+    const { items: wishlistItems, loading: wishlistLoading } = useWishlist();
     
     const [couponCode, setCouponCode] = useState("");
     const [couponLoading, setCouponLoading] = useState(false);
@@ -33,13 +36,32 @@ export default function CartPage() {
 
     if (items.length === 0) {
         return (
-            <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center gap-6 text-center">
+            <div className="container mx-auto flex flex-col items-center justify-center gap-6 text-center py-12">
                 <ShoppingCart className="h-24 w-24 text-muted-foreground" />
                 <h1 className="font-headline text-3xl font-bold">Your cart is empty</h1>
                 <p className="text-muted-foreground">Looks like you haven't added anything to your cart yet.</p>
                 <Button asChild>
                     <Link href="/shop">Start Shopping</Link>
                 </Button>
+
+                {wishlistLoading ? (
+                     <div className="flex flex-col items-center justify-center h-[50vh]">
+                        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                    </div>
+                ) : wishlistItems.length > 0 && (
+                    <div className="w-full max-w-5xl mt-16">
+                        <Separator />
+                        <div className="text-center my-8">
+                            <h2 className="font-headline text-2xl font-bold">Your Wishlist</h2>
+                            <p className="text-muted-foreground">Maybe add something from your wishlist?</p>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {wishlistItems.map(item => (
+                                <ProductCard key={item.id} product={item} />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

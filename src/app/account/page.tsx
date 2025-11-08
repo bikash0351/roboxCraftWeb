@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ChevronRight, LogOut, MapPin, Package, Loader2, Pencil } from "lucide-react";
+import { ChevronRight, LogOut, MapPin, Package, Loader2, Pencil, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AccountPage() {
@@ -106,6 +106,14 @@ export default function AccountPage() {
                         <div className="flex items-center gap-4">
                             <Package className="h-6 w-6" />
                             <span className="font-medium">My Orders</span>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </Link>
+                    <Separator />
+                     <Link href="/account/wishlist" className="flex w-full items-center justify-between rounded-lg p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <div className="flex items-center gap-4">
+                            <Heart className="h-6 w-6" />
+                            <span className="font-medium">My Wishlist</span>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     </Link>
