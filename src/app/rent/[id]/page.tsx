@@ -323,7 +323,7 @@ function RentCheckoutForm() {
              <div className="container mx-auto flex h-[60vh] flex-col items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
-        )
+        );
     }
     
     const imageSrc = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : "https://placehold.co/64x64";
