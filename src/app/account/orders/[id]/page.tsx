@@ -6,7 +6,7 @@ import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, getDoc, type Timestamp } from "firebase/firestore";
+import { doc, getDoc, type Timestamp, collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,8 +14,10 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTracker } from "@/components/ui/order-tracker";
-import { Loader2, ArrowLeft, Home, MapPin, Package } from "lucide-react";
+import { Loader2, ArrowLeft, Home, MapPin, Package, StickyNote, Bot, User } from "lucide-react";
 import type { CartItem } from "@/components/cart-provider";
+import { format } from "date-fns";
+
 
 interface Order {
     id: string;
@@ -36,6 +38,13 @@ interface Order {
     shipping: number;
 }
 
+interface OrderNote {
+    id: string;
+    text: string;
+    createdAt: Timestamp;
+    author: 'Admin' | 'System' | 'Client';
+}
+
 
 export default function OrderDetailsPage() {
     const { user, loading: authLoading } = useAuth();
@@ -44,6 +53,7 @@ export default function OrderDetailsPage() {
     const id = params.id as string;
 
     const [order, setOrder] = useState<Order | null>(null);
+    const [notes, setNotes] = useState<OrderNote[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -73,6 +83,14 @@ export default function OrderDetailsPage() {
                 }
             };
             fetchOrder();
+
+            const notesQuery = query(collection(db, "orders", id, "notes"), orderBy("createdAt", "desc"));
+            const unsubscribe = onSnapshot(notesQuery, (snapshot) => {
+                const notesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderNote));
+                setNotes(notesData);
+            });
+            
+            return () => unsubscribe();
         }
     }, [user, id]);
 
@@ -86,6 +104,16 @@ export default function OrderDetailsPage() {
 
     if (!order) {
         return notFound();
+    }
+    
+    const getStatusVariant = (status: Order['status']) => {
+        switch (status) {
+            case 'pending': return 'secondary';
+            case 'shipped': return 'default';
+            case 'delivered': return 'default';
+            case 'cancelled': return 'destructive';
+            default: return 'outline';
+        }
     }
     
     return (
@@ -105,7 +133,7 @@ export default function OrderDetailsPage() {
                                 Placed on {new Date(order.createdAt.seconds * 1000).toLocaleDateString()}
                             </p>
                         </div>
-                        <Badge variant={order.status === 'pending' ? 'secondary' : 'default'} className="capitalize text-base px-4 py-2 self-start md:self-center">{order.status}</Badge>
+                        <Badge variant={getStatusVariant(order.status)} className="capitalize text-base px-4 py-2 self-start md:self-center">{order.status}</Badge>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
@@ -136,6 +164,27 @@ export default function OrderDetailsPage() {
                         </div>
                     </div>
                     
+                    {notes.length > 0 && (
+                        <div>
+                            <h3 className="font-semibold mb-4 flex items-center gap-2"><StickyNote className="h-5 w-5" /> Updates from the seller</h3>
+                             <div className="space-y-4 border p-4 rounded-lg">
+                                {notes.map(note => (
+                                    <div key={note.id} className="flex gap-3">
+                                        <div className="flex-shrink-0">
+                                            {note.author === 'Admin' ? <Bot className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-muted-foreground" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-muted-foreground">
+                                                {note.author} • {note.createdAt ? format(note.createdAt.toDate(), 'PPpp') : '...'}
+                                            </p>
+                                            <p className="text-sm">{note.text}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
                     <div>
                         <h3 className="font-semibold mb-4">Items in this order</h3>
                         <div className="space-y-4">
@@ -160,4 +209,3 @@ export default function OrderDetailsPage() {
          </div>
     );
 }
-
