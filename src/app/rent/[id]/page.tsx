@@ -20,7 +20,7 @@ import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import type { Product } from "@/lib/data";
 import { Label } from "@/components/ui/label";
-import type { Coupon } from "@/components/cart-provider";
+import type { Coupon } from "@/app/admin/coupons/page";
 import { Badge } from "@/components/ui/badge";
 
 const rentCheckoutSchema = z.object({
@@ -505,3 +505,5 @@ export default function RentPage() {
         </Suspense>
     )
 }
+
+    
