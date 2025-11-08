@@ -16,7 +16,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { Facebook, Twitter } from "lucide-react";
-import { collection, doc, updateDoc, increment, addDoc, getDocs, serverTimestamp, orderBy, query, type Timestamp } from "firebase/firestore";
+import { collection, doc, updateDoc, increment, addDoc, getDocs, serverTimestamp, orderBy, query, type Timestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
@@ -118,7 +118,7 @@ const ShareSheet = ({ url, onShare }: { url: string, onShare: () => void }) => {
     );
 };
 
-const CommentsSheet = ({ reel, onCommentPosted }: { reel: Reel, onCommentPosted: () => void }) => {
+const CommentsSheet = ({ reel, onCommentsUpdate }: { reel: Reel, onCommentsUpdate: (count: number) => void }) => {
     const { user } = useAuth();
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
@@ -132,12 +132,18 @@ const CommentsSheet = ({ reel, onCommentPosted }: { reel: Reel, onCommentPosted:
             const querySnapshot = await getDocs(commentsQuery);
             const commentsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
             setComments(commentsData);
+
+            if (commentsData.length !== reel.comments) {
+                const reelRef = doc(db, 'reels', reel.id);
+                await updateDoc(reelRef, { comments: commentsData.length });
+                onCommentsUpdate(commentsData.length);
+            }
         } catch (error) {
             console.error("Error fetching comments:", error);
         } finally {
             setLoadingComments(false);
         }
-    }, [reel.id]);
+    }, [reel.id, reel.comments, onCommentsUpdate]);
 
     useEffect(() => {
         fetchComments();
@@ -149,18 +155,25 @@ const CommentsSheet = ({ reel, onCommentPosted }: { reel: Reel, onCommentPosted:
 
         setIsSubmitting(true);
         try {
+            const batch = writeBatch(db);
+            const reelRef = doc(db, "reels", reel.id);
+            const newCommentRef = doc(collection(db, `reels/${reel.id}/comments`));
+
             const commentData = {
                 username: user.displayName || 'Anonymous',
                 userImage: user.photoURL || '',
                 text: newComment,
                 createdAt: serverTimestamp()
             };
-            const commentRef = await addDoc(collection(db, `reels/${reel.id}/comments`), commentData);
 
-            setComments(prev => [{ ...commentData, id: commentRef.id, createdAt: new Date() } as any, ...prev]);
+            batch.set(newCommentRef, commentData);
+            batch.update(reelRef, { comments: increment(1) });
+            
+            await batch.commit();
 
+            setComments(prev => [{ ...commentData, id: newCommentRef.id, createdAt: new Date() } as any, ...prev]);
+            onCommentsUpdate(comments.length + 1);
             setNewComment("");
-            onCommentPosted();
         } catch (error) {
             console.error("Error posting comment:", error);
         } finally {
@@ -235,8 +248,12 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
     }, [reel.id]);
 
     const handleInteraction = async (field: "likes" | "shares", value: number = 1) => {
-        const reelRef = doc(db, "reels", reel.id);
-        await updateDoc(reelRef, { [field]: increment(value) });
+        try {
+            const reelRef = doc(db, "reels", reel.id);
+            await updateDoc(reelRef, { [field]: increment(value) });
+        } catch (error) {
+            console.error(`Failed to update ${field}`, error);
+        }
     };
 
     const handleLike = () => {
@@ -246,17 +263,15 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         setIsLiked(prev => !prev);
     };
 
-    const handleCommentPosted = useCallback(() => {
-        const reelRef = doc(db, "reels", reel.id);
-        updateDoc(reelRef, { comments: increment(1) });
-        setComments(prev => prev + 1);
-    }, [reel.id]);
+    const handleCommentsUpdate = useCallback((newCount: number) => {
+        setComments(newCount);
+    }, []);
 
-
-    const handleShare = () => {
+    const handleShare = useCallback(() => {
         handleInteraction("shares");
         setShares(prev => prev + 1);
-    };
+    }, [reel.id]);
+
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -308,11 +323,11 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
                                     <span className="text-xs">{comments}</span>
                                 </Button>
                             </SheetTrigger>
-                            <CommentsSheet reel={reel} onCommentPosted={handleCommentPosted} />
+                            <CommentsSheet reel={reel} onCommentsUpdate={handleCommentsUpdate} />
                         </Sheet>
                          <Sheet>
                             <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={handleShare} className="h-12 w-12 flex-col gap-1 text-white hover:bg-white/10 hover:text-white">
+                                <Button variant="ghost" size="icon" className="h-12 w-12 flex-col gap-1 text-white hover:bg-white/10 hover:text-white">
                                     <Send className="h-7 w-7" />
                                     <span className="text-xs">{shares}</span>
                                 </Button>
@@ -325,3 +340,5 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         </div>
     );
 }
+
+    
