@@ -76,22 +76,19 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const login = async (userIdentifier: string, pass: string) => {
     setLoading(true);
     try {
-      // 1. Try Firebase Authentication first
-      try {
-        await signInWithEmailAndPassword(adminAuth, userIdentifier, pass);
-        // onAuthStateChanged will handle the rest
+      // 1. Check for hardcoded superuser first
+      if (userIdentifier === ADMIN_USER && pass === ADMIN_PASS) {
+        setAdmin(null); // Not a firebase user
+        setIsSuperAdmin(true);
+        sessionStorage.setItem(SESSION_STORAGE_KEY, 'superuser');
         return true;
-      } catch (firebaseError) {
-         // 2. If Firebase fails, check for hardcoded superuser
-        if (userIdentifier === ADMIN_USER && pass === ADMIN_PASS) {
-            setAdmin(null); // Not a firebase user
-            setIsSuperAdmin(true);
-            sessionStorage.setItem(SESSION_STORAGE_KEY, 'superuser');
-            return true;
-        }
-        // If both fail, throw the original Firebase error for feedback
-        throw firebaseError;
       }
+
+      // 2. If not superuser, try Firebase Authentication
+      await signInWithEmailAndPassword(adminAuth, userIdentifier, pass);
+      // onAuthStateChanged will handle the rest
+      return true;
+
     } catch (error) {
       console.error("Admin login failed:", error);
       return false;
