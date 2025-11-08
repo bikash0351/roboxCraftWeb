@@ -24,6 +24,7 @@ import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 import { useAuth } from "@/hooks/use-auth";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const ReelVideo = ({ reel, isVisible }: { reel: Reel, isVisible: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -246,13 +247,13 @@ const CommentsSheet = ({ reel, onCommentsUpdate }: { reel: Reel, onCommentsUpdat
                         <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                     <Input 
-                        placeholder="Add a comment..." 
+                        placeholder={user ? "Add a comment..." : "Login to add a comment..."}
                         className="flex-1" 
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         disabled={!user || isSubmitting}
                     />
-                    <Button type="submit" disabled={!newComment.trim() || isSubmitting}>
+                    <Button type="submit" disabled={!newComment.trim() || isSubmitting || !user}>
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Post'}
                     </Button>
                 </form>
@@ -262,6 +263,8 @@ const CommentsSheet = ({ reel, onCommentsUpdate }: { reel: Reel, onCommentsUpdat
 }
 
 export function ReelPlayer({ reel }: ReelPlayerProps) {
+    const { user } = useAuth();
+    const router = useRouter();
     const [likes, setLikes] = useState(reel.likes);
     const [comments, setComments] = useState(reel.comments);
     const [shares, setShares] = useState(reel.shares);
@@ -277,15 +280,23 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
     }, [reel.id]);
 
     const handleInteraction = useCallback(async (field: "likes" | "shares", value: number = 1) => {
+        if (!user) {
+            router.push('/login?redirect=/reels');
+            return;
+        }
         try {
             const reelRef = doc(db, "reels", reel.id);
             await updateDoc(reelRef, { [field]: increment(value) });
         } catch (error) {
             console.error(`Failed to update ${field}`, error);
         }
-    }, [reel.id]);
+    }, [reel.id, user, router]);
 
     const handleLike = () => {
+        if (!user) {
+            router.push('/login?redirect=/reels');
+            return;
+        }
         const newValue = isLiked ? -1 : 1;
         handleInteraction("likes", newValue);
         setLikes(prev => prev + newValue);

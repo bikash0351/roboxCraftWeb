@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
 import type { Product } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export interface WishlistItem extends Product {}
 
@@ -27,6 +28,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   const getWishlistFromLocalStorage = (): WishlistItem[] => {
     try {
@@ -106,6 +108,10 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const isInWishlist = (productId: string) => items.some(item => item.id === productId);
 
   const toggleWishlist = (product: Product) => {
+    if (!user) {
+        router.push('/login?redirect=/shop/' + product.id);
+        return;
+    }
     const isCurrentlyInWishlist = isInWishlist(product.id);
     let newItems: WishlistItem[];
 
