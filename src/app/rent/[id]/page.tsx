@@ -15,11 +15,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, Suspense, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { addDoc, collection, serverTimestamp, getDocs, query, where, doc, getDoc, orderBy } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where, doc, getDoc, orderBy, increment, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import type { Product } from "@/lib/data";
 import { Label } from "@/components/ui/label";
+import type { Coupon } from "@/components/cart-provider";
+import { Badge } from "@/components/ui/badge";
 
 const rentCheckoutSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -118,6 +120,9 @@ function RentCheckoutForm() {
     const [product, setProduct] = useState<Product | null>(null);
     const [rentalPlans, setRentalPlans] = useState<RentalPlan[]>([]);
     const [loadingProduct, setLoadingProduct] = useState(true);
+    const [couponCode, setCouponCode] = useState("");
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    const [couponLoading, setCouponLoading] = useState(false);
 
     const shippingCost = 100.00;
 
@@ -135,24 +140,39 @@ function RentCheckoutForm() {
     });
 
     const selectedPlanId = form.watch("rentalPlanId");
-
-    const { rentalFee, refundAmount, securityDeposit, taxAmount, totalAmount } = useMemo(() => {
+    
+    const { rentalFee, refundAmount, securityDeposit, taxAmount, totalAmount, discountAmount } = useMemo(() => {
         if (!product || !selectedPlanId) {
-            return { rentalFee: 0, refundAmount: 0, securityDeposit: 0, taxAmount: 0, totalAmount: 0 };
+            return { rentalFee: 0, refundAmount: 0, securityDeposit: 0, taxAmount: 0, totalAmount: 0, discountAmount: 0 };
         }
         const plan = rentalPlans.find(p => p.id === selectedPlanId);
         if (!plan) {
-            return { rentalFee: 0, refundAmount: 0, securityDeposit: 0, taxAmount: 0, totalAmount: 0 };
+            return { rentalFee: 0, refundAmount: 0, securityDeposit: 0, taxAmount: 0, totalAmount: 0, discountAmount: 0 };
         }
 
-        const securityDeposit = product.price;
-        const rentalFee = (securityDeposit * plan.feePercentage) / 100;
-        const refundAmount = securityDeposit - rentalFee;
-        const taxAmount = rentalFee * 0.18;
-        const totalAmount = securityDeposit + taxAmount + shippingCost; // User pays deposit + tax on fee + shipping
+        const baseRentalFee = (product.price * plan.feePercentage) / 100;
+        
+        let finalDiscount = 0;
+        if (appliedCoupon) {
+            // Rentals only apply to kits
+             if (appliedCoupon.categoryType === "Universal" || appliedCoupon.categoryType === "Kits") {
+                if (appliedCoupon.discountType === 'percentage') {
+                    finalDiscount = (baseRentalFee * appliedCoupon.discountValue) / 100;
+                } else {
+                    finalDiscount = appliedCoupon.discountValue;
+                }
+             }
+        }
+        finalDiscount = Math.min(finalDiscount, baseRentalFee);
 
-        return { rentalFee, refundAmount, securityDeposit, taxAmount, totalAmount };
-    }, [product, selectedPlanId, rentalPlans, shippingCost]);
+        const securityDeposit = product.price;
+        const finalRentalFee = baseRentalFee - finalDiscount;
+        const refundAmount = securityDeposit - finalRentalFee;
+        const taxAmount = finalRentalFee * 0.18;
+        const totalAmount = securityDeposit + taxAmount + shippingCost; 
+
+        return { rentalFee: finalRentalFee, refundAmount, securityDeposit, taxAmount, totalAmount, discountAmount: finalDiscount };
+    }, [product, selectedPlanId, rentalPlans, shippingCost, appliedCoupon]);
 
     useEffect(() => {
         const fetchProductAndPlans = async () => {
@@ -199,7 +219,54 @@ function RentCheckoutForm() {
             });
         }
     }, [user, form]);
+    
+     const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setCouponLoading(true);
+        try {
+            const q = query(collection(db, "coupons"), where("code", "==", couponCode.toUpperCase()));
+            const querySnapshot = await getDocs(q);
 
+            if (querySnapshot.empty) {
+                toast({ variant: "destructive", title: "Invalid Coupon Code" });
+                return;
+            } 
+            
+            const couponDoc = querySnapshot.docs[0];
+            const couponData = { firestoreId: couponDoc.id, ...couponDoc.data() } as Coupon;
+
+            const now = new Date();
+            const expiryDate = couponData.expiryDate?.toDate();
+
+            if (couponData.status !== 'active') {
+                toast({ variant: "destructive", title: "Coupon is not active" });
+                return;
+            }
+
+            if (expiryDate && expiryDate < now) {
+                toast({ variant: "destructive", title: "This coupon has expired" });
+                return;
+            }
+
+            if (couponData.categoryType === 'Components') {
+                 toast({ variant: "destructive", title: "Invalid Coupon", description: "This coupon is not valid for kit rentals." });
+                return;
+            }
+            
+            setAppliedCoupon(couponData);
+            toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error applying coupon" });
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode("");
+        toast({ title: "Coupon removed" });
+    }
 
     async function onSubmit(data: z.infer<typeof rentCheckoutSchema>) {
         if (!user || !product || !selectedPlanId) return;
@@ -222,9 +289,18 @@ function RentCheckoutForm() {
                 potentialRefund: refundAmount,
                 status: 'rented',
                 createdAt: serverTimestamp(),
+                coupon: appliedCoupon?.code || null,
+                discount: discountAmount,
             };
 
             await addDoc(collection(db, "rentals"), rentalOrderData);
+
+            if (appliedCoupon) {
+                const couponRef = doc(db, "coupons", appliedCoupon.firestoreId);
+                await updateDoc(couponRef, {
+                    usageCount: increment(1)
+                });
+            }
 
             toast({
                 title: "Rental Order Placed!",
@@ -304,7 +380,7 @@ function RentCheckoutForm() {
                                 <FormField control={form.control} name="address" render={({ field }) => (<FormItem className="sm:col-span-2"><FormLabel>Address</FormLabel><FormControl><Input placeholder="Your Address" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={form.control} name="city" render={({ field }) => (<FormItem><FormLabel>City</FormLabel><FormControl><Input placeholder="Your City" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>Pincode</FormLabel><FormControl><Input placeholder="Your Pincode" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                                 <FormField control={form.control} name="country" render={({ field }) => (<FormItem className="sm:col-span-2"><FormLabel>Country</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)}/>
+                                 <FormField control={form.control} name="country" render={({ field }) => (<FormItem className="sm:col-span-2"><FormLabel>Country</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></Item>)}/>
                             </CardContent>
                         </Card>
                         {/* Rental Policy */}
@@ -350,14 +426,40 @@ function RentCheckoutForm() {
                                     </div>
                                 </div>
                                 <Separator />
+                                 <div className="space-y-2">
+                                    {!appliedCoupon ? (
+                                        <div className="flex items-end gap-2">
+                                            <div className="flex-grow">
+                                                <Label htmlFor="coupon">Coupon Code</Label>
+                                                <Input id="coupon" placeholder="Enter coupon" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={couponLoading} />
+                                            </div>
+                                            <Button type="button" onClick={handleApplyCoupon} disabled={!couponCode || couponLoading}>
+                                                {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                                            </Button>
+                                        </div>
+                                        ) : (
+                                        <div className="flex justify-between items-center text-sm">
+                                            <p className="text-muted-foreground">Coupon Applied:</p>
+                                            <Badge>
+                                                {appliedCoupon.code}
+                                                <button type="button" onClick={removeCoupon} className="ml-2 font-bold text-lg leading-none">&times;</button>
+                                            </Badge>
+                                        </div>
+                                    )}
+                                </div>
+                                <Separator />
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
                                         <span>Security Deposit</span>
                                         <span>₹{securityDeposit.toFixed(2)}</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                     <div className="flex justify-between">
                                         <span>Rental Fee</span>
                                         <span>₹{rentalFee.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Discount</span>
+                                        <span>- ₹{discountAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Tax on Fee (18%)</span>
@@ -377,7 +479,7 @@ function RentCheckoutForm() {
                                         <span>Potential Refund</span>
                                         <span>₹{refundAmount.toFixed(2)}</span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">The potential refund is the security deposit minus the rental fee. It will be processed after the kit is returned in good condition.</p>
+                                    <p className="text-xs text-muted-foreground">The potential refund is the security deposit minus the final rental fee. It will be processed after the kit is returned in good condition.</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -403,6 +505,3 @@ export default function RentPage() {
         </Suspense>
     )
 }
-
-
-    
