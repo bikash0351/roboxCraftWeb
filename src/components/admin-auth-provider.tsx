@@ -13,8 +13,8 @@ import { auth as adminAuth, db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 interface AdminAuthContextType {
-  admin: User | null; // Can be a Firebase user
-  isSuperAdmin: boolean; // Or the hardcoded super admin
+  admin: User | null; // This is the Firebase User object
+  isSuperAdmin: boolean;
   loading: boolean;
   login: (user: string, pass: string) => Promise<boolean>;
   logout: () => void;
@@ -24,7 +24,7 @@ export const AdminAuthContext = createContext<AdminAuthContextType | undefined>(
 
 const ADMIN_USER = 'roboxcraft';
 const ADMIN_PASS = 'bikashA1@#';
-const SESSION_STORAGE_KEY = 'admin-auth-type'; // Stores 'firebase' or 'superuser'
+const SESSION_STORAGE_KEY = 'admin-auth-type';
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<User | null>(null);
@@ -33,7 +33,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Check for hardcoded superuser session
     try {
       const storedAuthType = sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (storedAuthType === 'superuser') {
@@ -43,57 +42,53 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         console.error("Could not parse admin auth from session storage", error);
     }
     
-    // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(adminAuth, async (user) => {
         if (user) {
-            // Verify if the logged-in user is an admin by checking the 'admins' collection
             const adminRef = doc(db, 'admins', user.uid);
             const adminSnap = await getDoc(adminRef);
 
             if (adminSnap.exists()) {
                 setAdmin(user);
-                setIsSuperAdmin(false); // Firebase user takes precedence
+                if (isSuperAdmin) setIsSuperAdmin(false); 
                 sessionStorage.setItem(SESSION_STORAGE_KEY, 'firebase');
                 await setDoc(adminRef, { lastLoginTime: serverTimestamp() }, { merge: true });
             } else {
-                // If user is not in 'admins' collection, sign them out from admin context
                 await firebaseSignOut(adminAuth);
                 setAdmin(null);
             }
         } else {
-            // Only set user to null if not a superadmin
-            if (!isSuperAdmin) {
-                setAdmin(null);
+            if (!sessionStorage.getItem(SESSION_STORAGE_KEY)) {
+              setAdmin(null);
             }
         }
         setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [isSuperAdmin]);
+  }, []);
 
 
-  const login = async (userIdentifier: string, pass: string) => {
+  const login = async (userIdentifier: string, pass: string): Promise<boolean> => {
     setLoading(true);
-    try {
-      // 1. Check for hardcoded superuser first
-      if (userIdentifier === ADMIN_USER && pass === ADMIN_PASS) {
-        setAdmin(null); // Not a firebase user
-        setIsSuperAdmin(true);
-        sessionStorage.setItem(SESSION_STORAGE_KEY, 'superuser');
-        return true;
-      }
+    // 1. Check for hardcoded superuser first
+    if (userIdentifier === ADMIN_USER && pass === ADMIN_PASS) {
+      setAdmin(null);
+      setIsSuperAdmin(true);
+      sessionStorage.setItem(SESSION_STORAGE_KEY, 'superuser');
+      setLoading(false);
+      return true;
+    }
 
-      // 2. If not superuser, try Firebase Authentication
+    // 2. If not superuser, try Firebase Authentication
+    try {
       await signInWithEmailAndPassword(adminAuth, userIdentifier, pass);
       // onAuthStateChanged will handle the rest
+      setLoading(false);
       return true;
-
     } catch (error) {
       console.error("Admin login failed:", error);
-      return false;
-    } finally {
       setLoading(false);
+      return false;
     }
   };
 
@@ -116,11 +111,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AdminAuthContext.Provider value={{
-        ...value,
-        // Provide a consistent boolean for checking auth status in components
-        admin: value.isSuperAdmin || value.admin ? (value.admin as any || true) : null 
-    }}>
+    <AdminAuthContext.Provider value={value}>
       {children}
     </AdminAuthContext.Provider>
   );

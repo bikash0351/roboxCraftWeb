@@ -12,9 +12,10 @@ export const useAdminAuth = () => {
     throw new Error("useAdminAuth must be used within an AdminAuthProvider");
   }
   
-  // We return a simplified view for components: is the user an admin (of any type)?
   return {
     admin: context.admin || context.isSuperAdmin,
+    isSuperAdmin: context.isSuperAdmin,
+    firebaseUser: context.admin,
     loading: context.loading,
     login: context.login,
     logout: context.logout,
