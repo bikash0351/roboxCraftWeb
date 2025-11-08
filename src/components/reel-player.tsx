@@ -118,7 +118,7 @@ const ShareSheet = ({ url, onShare }: { url: string, onShare: () => void }) => {
     );
 };
 
-const CommentsSheet = ({ reel, initialCommentCount, onCommentPosted }: { reel: Reel, initialCommentCount: number, onCommentPosted: () => void }) => {
+const CommentsSheet = ({ reel, onCommentPosted }: { reel: Reel, onCommentPosted: () => void }) => {
     const { user } = useAuth();
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
@@ -138,6 +138,10 @@ const CommentsSheet = ({ reel, initialCommentCount, onCommentPosted }: { reel: R
             setLoadingComments(false);
         }
     }, [reel.id]);
+
+    useEffect(() => {
+        fetchComments();
+    }, [fetchComments]);
     
     const handlePostComment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,7 +157,6 @@ const CommentsSheet = ({ reel, initialCommentCount, onCommentPosted }: { reel: R
             };
             const commentRef = await addDoc(collection(db, `reels/${reel.id}/comments`), commentData);
 
-            // Add the new comment to the top of the list optimisticly
             setComments(prev => [{ ...commentData, id: commentRef.id, createdAt: new Date() } as any, ...prev]);
 
             setNewComment("");
@@ -168,7 +171,7 @@ const CommentsSheet = ({ reel, initialCommentCount, onCommentPosted }: { reel: R
     return (
         <SheetContent side="bottom" className="rounded-t-lg h-[80dvh] flex flex-col">
             <SheetHeader className="text-center">
-                <SheetTitle>{initialCommentCount + comments.length} Comments</SheetTitle>
+                <SheetTitle>{comments.length} Comments</SheetTitle>
             </SheetHeader>
             <Separator className="my-2" />
             <ScrollArea className="flex-1 -mx-6 px-6">
@@ -305,7 +308,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
                                     <span className="text-xs">{comments}</span>
                                 </Button>
                             </SheetTrigger>
-                            <CommentsSheet reel={reel} initialCommentCount={comments} onCommentPosted={handleCommentPosted} />
+                            <CommentsSheet reel={reel} onCommentPosted={handleCommentPosted} />
                         </Sheet>
                          <Sheet>
                             <SheetTrigger asChild>
@@ -322,5 +325,3 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         </div>
     );
 }
-
-    
