@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import Image from "next/image";
+import imageCompression from "browser-image-compression";
 
 // Note: For this page to function correctly, Firebase Storage rules must allow public read access
 // to the `reels/` path.
@@ -33,6 +33,8 @@ export interface Reel {
   id: string;
   videoUrl: string;
   videoPath: string; // To delete from storage
+  thumbnailUrl?: string; // For low-quality preview
+  thumbnailPath?: string; // To delete thumbnail from storage
   description: string;
   likes: number;
   comments: number;
@@ -41,6 +43,43 @@ export interface Reel {
   uploaderName: string;
   uploaderImage: string;
 }
+
+const generateThumbnail = async (videoFile: File): Promise<{ thumbnail: File, dataUrl: string }> => {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(videoFile);
+        video.onloadeddata = () => {
+            video.currentTime = 1; // Seek to 1 second
+        };
+        video.onseeked = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject('Could not get canvas context');
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(async (blob) => {
+                if (!blob) return reject('Could not create blob from canvas');
+                
+                const compressedFile = await imageCompression(new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' }), {
+                    maxSizeMB: 0.05, // Compress to under 50KB
+                    maxWidthOrHeight: 480,
+                    useWebWorker: true,
+                });
+
+                const reader = new FileReader();
+                reader.onloadend = () => resolve({ thumbnail: compressedFile, dataUrl: reader.result as string });
+                reader.onerror = reject;
+                reader.readAsDataURL(compressedFile);
+
+            }, 'image/jpeg');
+        };
+        video.onerror = reject;
+    });
+};
+
 
 export default function AdminReelsPage() {
     const { admin, loading: adminLoading } = useAdminAuth();
@@ -96,18 +135,29 @@ export default function AdminReelsPage() {
     const onSubmit = async (values: z.infer<typeof reelSchema>) => {
         try {
             const videoFile = values.video;
-            const videoPath = `reels/${Date.now()}-${videoFile.name}`;
-            const storageRef = ref(storage, videoPath);
-
+            
+            // Generate thumbnail
+            const { thumbnail } = await generateThumbnail(videoFile);
+            
             // Upload video
-            await uploadBytes(storageRef, videoFile);
-            const videoUrl = await getDownloadURL(storageRef);
+            const videoPath = `reels/${Date.now()}-${videoFile.name}`;
+            const videoStorageRef = ref(storage, videoPath);
+            await uploadBytes(videoStorageRef, videoFile);
+            const videoUrl = await getDownloadURL(videoStorageRef);
+
+            // Upload thumbnail
+            const thumbnailPath = `reels/thumbnails/${Date.now()}-thumb.jpg`;
+            const thumbnailStorageRef = ref(storage, thumbnailPath);
+            await uploadBytes(thumbnailStorageRef, thumbnail);
+            const thumbnailUrl = await getDownloadURL(thumbnailStorageRef);
 
             // Save metadata to Firestore
             await addDoc(collection(db, "reels"), {
                 description: values.description,
                 videoUrl,
                 videoPath,
+                thumbnailUrl,
+                thumbnailPath,
                 likes: 0,
                 comments: 0,
                 shares: 0,
@@ -134,6 +184,13 @@ export default function AdminReelsPage() {
             // Delete video from Storage
             const videoRef = ref(storage, selectedReel.videoPath);
             await deleteObject(videoRef);
+
+            // Delete thumbnail from storage if it exists
+            if (selectedReel.thumbnailPath) {
+                const thumbRef = ref(storage, selectedReel.thumbnailPath);
+                await deleteObject(thumbRef);
+            }
+
 
             toast({ title: "Reel Deleted" });
             fetchReels();

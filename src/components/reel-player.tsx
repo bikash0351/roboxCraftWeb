@@ -23,20 +23,25 @@ import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 import { useAuth } from "@/hooks/use-auth";
+import Image from "next/image";
 
 const ReelVideo = ({ reel, isVisible }: { reel: Reel, isVisible: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isBuffering, setIsBuffering] = useState(true);
+    const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isVisible) {
+            // Autoplay when visible
             video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
         } else {
+            // Pause and reset when not visible
             video.pause();
+            video.currentTime = 0;
             setIsPlaying(false);
         }
     }, [isVisible]);
@@ -56,23 +61,46 @@ const ReelVideo = ({ reel, isVisible }: { reel: Reel, isVisible: boolean }) => {
     
     return (
         <div className="absolute inset-0 bg-black flex items-center justify-center" onClick={togglePlay}>
-            {isLoading && (
-                 <div className="absolute inset-0 flex items-center justify-center z-10">
+            {reel.thumbnailUrl && (
+                <Image
+                    src={reel.thumbnailUrl}
+                    alt={`${reel.description} thumbnail`}
+                    fill
+                    className={cn(
+                        "object-cover transition-opacity duration-500",
+                        isVideoLoaded ? "opacity-0" : "opacity-100"
+                    )}
+                    style={{ filter: 'blur(10px)' }}
+                />
+            )}
+             
+            {(isBuffering || !isVisible) && !isVideoLoaded && (
+                 <div className="absolute inset-0 flex items-center justify-center z-20">
                     <Loader2 className="h-10 w-10 text-white/50 animate-spin" />
                 </div>
             )}
+
             <video
                 ref={videoRef}
                 src={reel.videoUrl}
                 loop
                 playsInline
-                className="w-full h-full object-contain"
+                className={cn(
+                    "w-full h-full object-contain z-10 transition-opacity duration-500",
+                    isVideoLoaded ? "opacity-100" : "opacity-0"
+                )}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                onCanPlay={() => setIsLoading(false)}
+                onLoadedData={() => {
+                    setIsVideoLoaded(true);
+                    setIsBuffering(false);
+                }}
+                onWaiting={() => setIsBuffering(true)}
+                onPlaying={() => setIsBuffering(false)}
             />
-             {!isPlaying && !isLoading && (
-                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+
+             {!isPlaying && isVideoLoaded && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-20">
                     <Play className="h-20 w-20 text-white/70" fill="currentColor"/>
                 </div>
             )}
@@ -171,8 +199,9 @@ const CommentsSheet = ({ reel, onCommentsUpdate }: { reel: Reel, onCommentsUpdat
             
             await batch.commit();
 
-            setComments(prev => [{ ...commentData, id: newCommentRef.id, createdAt: new Date() } as any, ...prev]);
-            onCommentsUpdate(comments.length + 1);
+            const updatedComments = [{ ...commentData, id: newCommentRef.id, createdAt: new Date() } as any, ...comments];
+            setComments(updatedComments);
+            onCommentsUpdate(updatedComments.length);
             setNewComment("");
         } catch (error) {
             console.error("Error posting comment:", error);
@@ -247,14 +276,14 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         setPageUrl(window.location.origin + '/reels#' + reel.id);
     }, [reel.id]);
 
-    const handleInteraction = async (field: "likes" | "shares", value: number = 1) => {
+    const handleInteraction = useCallback(async (field: "likes" | "shares", value: number = 1) => {
         try {
             const reelRef = doc(db, "reels", reel.id);
             await updateDoc(reelRef, { [field]: increment(value) });
         } catch (error) {
             console.error(`Failed to update ${field}`, error);
         }
-    };
+    }, [reel.id]);
 
     const handleLike = () => {
         const newValue = isLiked ? -1 : 1;
@@ -270,7 +299,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
     const handleShare = useCallback(() => {
         handleInteraction("shares");
         setShares(prev => prev + 1);
-    }, [reel.id]);
+    }, [handleInteraction]);
 
 
     useEffect(() => {
@@ -298,7 +327,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         <div ref={containerRef} className="relative h-full w-full max-w-md mx-auto aspect-[9/16]">
             <ReelVideo reel={reel} isVisible={isVisible} />
             
-            <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-20 md:pb-4 text-white bg-gradient-to-t from-black/60 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-20 md:pb-4 text-white bg-gradient-to-t from-black/60 to-transparent">
                 <div className="flex items-end gap-4">
                     <div className="flex-1">
                         <div className="flex items-center gap-2">

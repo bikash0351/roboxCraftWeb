@@ -49,6 +49,8 @@ export interface Reel {
   id: string;
   videoUrl: string;
   videoPath: string;
+  thumbnailUrl?: string;
+  thumbnailPath?: string;
   description: string;
   likes: number;
   comments: number;
