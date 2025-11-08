@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -74,7 +75,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             />
-            {hasDiscount && (
+            {hasDiscount && discountPercentage > 0 && (
               <Badge
                 variant="destructive"
                 className={cn(
@@ -141,3 +142,5 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
+
+    

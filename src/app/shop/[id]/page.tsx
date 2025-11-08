@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -143,7 +144,7 @@ export default function ProductDetailPage() {
                 sizes="(max-width: 768px) 100vw, 50vw"
                 priority
               />
-            {hasDiscount && (
+            {hasDiscount && discountPercentage > 0 && (
               <Badge
                 variant="destructive"
                 className="absolute top-3 left-3 rounded-full h-12 w-12 flex items-center justify-center text-lg font-bold bg-primary text-primary-foreground border-2 border-background"
@@ -325,3 +326,5 @@ export default function ProductDetailPage() {
 
     
 }
+
+    

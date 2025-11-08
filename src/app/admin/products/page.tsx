@@ -444,7 +444,7 @@ export default function AdminProductsPage() {
             category: "Kits",
             price: 0,
             costPrice: undefined,
-            discountPercentage: undefined,
+            discountPercentage: 0,
             stock: 0,
             imageUrls: [],
             shortDescription: "",
@@ -499,7 +499,7 @@ export default function AdminProductsPage() {
             form.reset({
                 ...product,
                 costPrice: product.costPrice || undefined,
-                discountPercentage: product.discountPercentage || undefined,
+                discountPercentage: product.discountPercentage || 0,
                 tags: product.tags || [],
                 kitContents: Array.isArray(product.kitContents) ? product.kitContents.join('\n') : '',
                 imageUrls: product.imageUrls || [],
@@ -510,7 +510,7 @@ export default function AdminProductsPage() {
                 category: "Kits",
                 price: 0,
                 costPrice: undefined,
-                discountPercentage: undefined,
+                discountPercentage: 0,
                 stock: 0,
                 imageUrls: [],
                 shortDescription: "",
@@ -717,6 +717,8 @@ export default function AdminProductsPage() {
 }
 
 
+
+    
 
     
 
