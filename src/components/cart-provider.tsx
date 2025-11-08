@@ -197,7 +197,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         
         updateCart(items, couponData);
-        toast({ title: "Coupon Applied!", description: `Discount of ${'${couponData.discountValue}'}${'${couponData.discountType === \'percentage\' ? \'%\' : \'₹\'}'} applied.` });
+        toast({ title: "Coupon Applied!", description: `Discount of ${couponData.discountValue}${couponData.discountType === 'percentage' ? '%' : '₹'} applied.` });
         return true;
     } catch (error) {
         toast({ variant: "destructive", title: "Error applying coupon" });
